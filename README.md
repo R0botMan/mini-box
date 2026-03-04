@@ -14,8 +14,8 @@ Or choose your preferred version:
 
 ## Screenshots
 
-![MiniBox Startup] (assets/Screenshot1.png)
-![MiniBox Playing a Track] (assets/Screenshot2.png)
+![MiniBox Startup](assets/Screenshot1.png)
+![MiniBox Playing a Track](assets/Screenshot2.png)
 
 ## Features
 
