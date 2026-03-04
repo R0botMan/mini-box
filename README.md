@@ -10,6 +10,8 @@ Or choose your preferred version:
 - **Installer (.exe)** - Standard Windows installer
 - **Portable (.exe)** - No installation needed, run directly
 
+**Security Note:** Only download from the [official releases](../../releases/latest) on this repository. Always verify the repository URL before installation.
+
 ## Features
 
 These are the features of the app:
