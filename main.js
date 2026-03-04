@@ -278,6 +278,7 @@ function createWindow() {
     backgroundColor: '#00000000',
     resizable: false,
     alwaysOnTop: true,
+    icon: path.join(__dirname, 'assets/MiniBoxIcon2.png'),
     webPreferences: { preload: path.join(__dirname, 'preload.js') },
     show: false
   });

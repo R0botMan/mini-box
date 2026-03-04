@@ -4,11 +4,41 @@
   "description": "Tiny draggable Spotify mini player",
   "main": "main.js",
   "scripts": {
-    "start": "electronmon ."
+    "start": "electronmon .",
+    "build": "electron-builder",
+    "build:win": "electron-builder --win",
+    "build:mac": "electron-builder --mac",
+    "build:linux": "electron-builder --linux"
+  },
+  "build": {
+    "appId": "com.minibox.spotify",
+    "productName": "Mini Box",
+    "files": [
+      "main.js",
+      "preload.js",
+      "index.html",
+      "assets/**"
+    ],
+    "directories": {
+      "buildResources": "assets"
+    },
+    "win": {
+      "target": [
+        "nsis",
+        "portable"
+      ],
+      "icon": "assets/MiniBoxIcon2.png",
+      "signAndEditExecutable": false
+    },
+    "nsis": {
+      "oneClick": false,
+      "allowToChangeInstallationDirectory": true
+    }
   },
   "license": "ISC",
   "devDependencies": {
     "electron": "^37.2.6",
+    "electron-builder": "^26.8.1",
     "electronmon": "^2.0.3"
   },
   "dependencies": {
