@@ -1,5 +1,5 @@
 // ===== Electron & Node =====
-const { app, BrowserWindow, ipcMain, shell } = require('electron');
+const { app, BrowserWindow, ipcMain, shell, nativeImage } = require('electron');
 const path = require('path');
 
 // ===== Secure storage =====
@@ -279,7 +279,20 @@ function createWindow() {
     resizable: false,
     alwaysOnTop: true,
     icon: path.join(__dirname, 'assets/MiniBoxIcon2.png'),
-    webPreferences: { preload: path.join(__dirname, 'preload.js') },
+    webPreferences: {
+      preload: path.join(__dirname, 'preload.js'),
+      nodeIntegration: false,
+      contextIsolation: true,
+      enableRemoteModule: false,
+      sandbox: true,
+      defaultWindowOpenHandler: ({ url }) => {
+        // Only allow opening external URLs via shell
+        if (url.startsWith('http:') || url.startsWith('https:')) {
+          return { action: 'deny' };
+        }
+        return { action: 'allow' };
+      }
+    },
     show: false
   });
 
@@ -289,6 +302,18 @@ function createWindow() {
 }
 
 app.whenReady().then(async () => {
+  // Set app icon for taskbar and system
+  const iconPath = path.join(__dirname, 'assets/MiniBoxIcon2.ico');
+  if (process.platform === 'win32') {
+    app.setAppUserModelId('com.minibox.spotify');
+  }
+  try {
+    const icon = nativeImage.createFromPath(iconPath);
+    app.dock && app.dock.setIcon(icon); // macOS
+  } catch (e) {
+    console.warn('[icon] Failed to set app icon:', e.message);
+  }
+
   // try to restore first
   const restored = await tryRestore();
 

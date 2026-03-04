@@ -1,6 +1,6 @@
 # Mini Box - Spotify Mini Player
 
-A tiny, draggable Spotify mini player for Windows that stays on top of your other applications.
+Hello! MiniBox is a simple tiny, draggable Spotify mini player for Windows that stays on top of your other applications. In this ReadMe I'll provide a description of what the app is and you can check it out yourself by downloading it.
 
 ## Download
 
@@ -12,16 +12,18 @@ Or choose your preferred version:
 
 ## Features
 
-Lightweight and minimal UI  
-Control playback from your desktop  
-Always-on-top window  
-Transparent draggable interface  
-Secure Spotify authentication
+These are the features of the app:
+
+- Lightweight and minimal UI  
+- Control playback from your desktop  
+- Always-on-top window  
+- Transparent draggable interface  
+- Secure Spotify authentication
 
 ## Requirements
 
 - Windows 10 or later
-- Spotify account (free or premium)
+- **Spotify Premium account** (required for the app owner)
 - Internet connection
 
 ## Installation
