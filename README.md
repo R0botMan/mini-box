@@ -12,11 +12,11 @@ Or choose your preferred version:
 
 ## Features
 
-✨ Lightweight and minimal UI  
-🎵 Control playback from your desktop  
-📌 Always-on-top window  
-🎨 Transparent draggable interface  
-🔐 Secure Spotify authentication
+Lightweight and minimal UI  
+Control playback from your desktop  
+Always-on-top window  
+Transparent draggable interface  
+Secure Spotify authentication
 
 ## Requirements
 

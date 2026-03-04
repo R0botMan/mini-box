@@ -27,7 +27,7 @@
         "nsis",
         "portable"
       ],
-      "icon": "assets/MiniBoxIcon2.png",
+      "icon": "assets/MiniBoxIcon2.ico",
       "signAndEditExecutable": false
     },
     "nsis": {
