@@ -12,6 +12,11 @@ Or choose your preferred version:
 
 **Security Note:** Only download from the [official releases](../../releases/latest) on this repository. Always verify the repository URL before installation.
 
+## Screenshots
+
+![MiniBox Startup] (assets/Screenshot1.png)
+![MiniBox Playing a Track] (assets/Screenshot2.png)
+
 ## Features
 
 These are the features of the app:
