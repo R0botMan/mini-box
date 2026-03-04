@@ -331,7 +331,13 @@
       [btnPrev, btnPlay, btnNext, volBtn].forEach(b => b.disabled = !on);
     }
     function setControlsVisible(visible) {
-      [btnPrev, btnPlay, btnNext, volBtn, moreBtn].forEach(b => b.style.display = visible ? 'inline-block' : 'none');
+      [btnPrev, btnPlay, btnNext, volBtn].forEach(b => b.style.display = visible ? 'inline-block' : 'none');
+      // moreBtn stays visible always
+    }
+    function setMenuOptionsVisible(visible) {
+      accountBtn.style.display = visible ? 'block' : 'none';
+      signOutBtn.style.display = visible ? 'block' : 'none';
+      closeMenuBtn.style.display = 'block'; // Always visible
     }
     function showLogin(show) { btnLogin.style.display = show ? 'inline-block' : 'none'; }
     function setPlayIcon() {
@@ -507,13 +513,26 @@
       const authed = await window.api.isAuthed();
       setControlsEnabled(authed);
       setControlsVisible(authed);
+      setMenuOptionsVisible(authed);
       showLogin(!authed);
       if (authed) { startPolling(); refresh(); }
-      else { stopPolling(); }
+      else { 
+        stopPolling();
+        // Clear UI when logged out
+        titleEl.textContent = 'Disconnected';
+        artistEl.textContent = 'Connect to your Spotify';
+        if (art) art.style.backgroundImage = '';
+        isPlaying = false;
+        setPlayIcon();
+        currentDuration = 0;
+        currentProgress = 0;
+        renderProgress();
+      }
     }
 
     btnLogin.onclick = async () => { await window.api.login(); setTimeout(checkAuthAndInit, 900); };
     window.api.onAuthed(() => checkAuthAndInit());
+    window.api.onLoggedOut(() => checkAuthAndInit());
 
     // Controls
     btnPrev.onclick = () => window.api.prev().catch(console.error);
