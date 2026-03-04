@@ -1,0 +1,20 @@
+{
+  "name": "mini-box",
+  "version": "1.0.0",
+  "description": "Tiny draggable Spotify mini player",
+  "main": "main.js",
+  "scripts": {
+    "start": "electronmon ."
+  },
+  "license": "ISC",
+  "devDependencies": {
+    "electron": "^37.2.6",
+    "electronmon": "^2.0.3"
+  },
+  "dependencies": {
+    "express": "^5.1.0",
+    "keytar": "^7.9.0",
+    "node-fetch": "^3.3.2",
+    "open": "^10.2.0"
+  }
+}
