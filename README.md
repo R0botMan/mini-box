@@ -48,7 +48,7 @@ These are the features of the app:
 - **Skip songs** - Use next/previous buttons
 - **Volume control** - Adjust your playback volume
 - **Queue Window** - Click the queue button to see the current song and the next 2 upcoming songs
-- **Next Song Preview** - A message appears 10 seconds before the current song ends showing what's playing next
+- **Next Song Preview** - A message appears 15 seconds before the current song ends showing what's playing next
 - **Minimize** - Window stays on top of other apps
 
 ## Troubleshooting
