@@ -1,0 +1,188 @@
+<!doctype html>
+<html>
+<head>
+  <meta charset="utf-8" />
+  <title>More</title>
+  <link href="https://fonts.googleapis.com/css2?family=Pixelify+Sans&display=swap" rel="stylesheet">
+  <style>
+    html, body {
+      margin: 0;
+      padding: 0;
+      background: transparent;
+      font-family: 'Pixelify Sans', sans-serif;
+    }
+
+    .more-container {
+      width: 120px;
+      background: rgba(12,12,12,0.65);
+      backdrop-filter: blur(6px);
+      border-radius: 10px;
+      border: 1px solid rgba(255, 255, 255, 0.1);
+      padding: 8px;
+      -webkit-app-region: drag;
+    }
+
+    .more-list {
+      display: flex;
+      flex-direction: column;
+      gap: 4px;
+    }
+
+    .more-message {
+      display: none;
+      color: #fff;
+      font-size: 10px;
+      line-height: 1.3;
+      padding: 8px;
+      margin-bottom: 8px;
+      background: rgba(255, 100, 100, 0.1);
+      border-radius: 4px;
+      border: 1px solid rgba(255, 100, 100, 0.2);
+      text-align: center;
+    }
+
+    .more-message.show {
+      display: block;
+    }
+
+    .more-btn {
+      padding: 8px 12px;
+      background: rgba(255, 255, 255, 0.05);
+      border: 1px solid rgba(255, 255, 255, 0.08);
+      border-radius: 4px;
+      color: #fff;
+      font-size: 11px;
+      font-family: 'Pixelify Sans', sans-serif;
+      cursor: pointer;
+      -webkit-app-region: no-drag;
+      transition: background 0.2s;
+    }
+
+    .more-btn:hover {
+      background: rgba(255, 255, 255, 0.1);
+      border-color: rgba(255, 255, 255, 0.15);
+    }
+
+    .more-btn:active {
+      background: rgba(255, 255, 255, 0.15);
+    }
+
+    .confirm-buttons {
+      display: none;
+      flex-direction: row;
+      gap: 4px;
+    }
+
+    .confirm-buttons button {
+      padding: 6px 8px;
+      border: 1px solid rgba(255, 255, 255, 0.08);
+      border-radius: 4px;
+      background: rgba(255, 255, 255, 0.05);
+      color: #fff;
+      font-family: 'Pixelify Sans', sans-serif;
+      font-size: 10px;
+      cursor: pointer;
+      transition: background 0.2s;
+      width: 100%;
+      -webkit-app-region: no-drag;
+    }
+
+    .confirm-buttons button:hover {
+      background: rgba(255, 255, 255, 0.1);
+      border-color: rgba(255, 255, 255, 0.15);
+    }
+
+    .confirm-buttons .confirm-yes {
+      background: rgba(255, 100, 100, 0.2);
+      border-color: rgba(255, 100, 100, 0.3);
+    }
+
+    .confirm-buttons .confirm-yes:hover {
+      background: rgba(255, 100, 100, 0.3);
+      border-color: rgba(255, 100, 100, 0.4);
+    }
+  </style>
+</head>
+<body>
+  <div class="more-container">
+    <div class="more-message" id="confirmMessage"></div>
+    <div class="more-list" id="moreList">
+      <button class="more-btn" id="accountBtn">Account</button>
+      <button class="more-btn" id="signOutBtn">Sign Out</button>
+      <button class="more-btn" id="closeBtn">Close App</button>
+    </div>
+    <div class="confirm-buttons" id="confirmButtons">
+      <button class="confirm-yes" id="confirmYes">Yes</button>
+      <button class="confirm-no" id="confirmNo">No</button>
+    </div>
+  </div>
+
+  <script>
+    const moreList = document.getElementById('moreList');
+    const confirmButtons = document.getElementById('confirmButtons');
+    const confirmMessage = document.getElementById('confirmMessage');
+    const accountBtn = document.getElementById('accountBtn');
+    const signOutBtn = document.getElementById('signOutBtn');
+    const closeBtn = document.getElementById('closeBtn');
+    const confirmYes = document.getElementById('confirmYes');
+    const confirmNo = document.getElementById('confirmNo');
+
+    let confirmAction = null;
+
+    function showConfirm(message, action) {
+      moreList.style.display = 'none';
+      confirmButtons.style.display = 'flex';
+      confirmMessage.textContent = message;
+      confirmMessage.classList.add('show');
+      confirmAction = action;
+    }
+
+    function hideConfirm() {
+      moreList.style.display = 'flex';
+      confirmButtons.style.display = 'none';
+      confirmMessage.classList.remove('show');
+      confirmMessage.textContent = '';
+      confirmAction = null;
+    }
+
+    accountBtn.addEventListener('click', async () => {
+      try {
+        await window.api.openSpotifyAccount();
+      } catch (err) {
+        console.error('openSpotifyAccount failed', err);
+      }
+    });
+
+    signOutBtn.addEventListener('click', () => {
+      showConfirm('Are you sure you want to sign out of Minibox?', async () => {
+        try {
+          await window.api.logout();
+          hideConfirm();
+        } catch (err) {
+          console.error('logout failed', err);
+        }
+      });
+    });
+
+    closeBtn.addEventListener('click', () => {
+      showConfirm('Are you sure you want to close MiniBox?', async () => {
+        try {
+          await window.api.closeApp();
+        } catch (err) {
+          console.error('closeApp failed', err);
+        }
+      });
+    });
+
+    confirmYes.addEventListener('click', () => {
+      if (confirmAction) {
+        confirmAction();
+      }
+    });
+
+    confirmNo.addEventListener('click', () => {
+      hideConfirm();
+    });
+  </script>
+</body>
+</html>

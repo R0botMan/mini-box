@@ -184,6 +184,8 @@ const authApp = express();
 authApp.get('/ping', (_req, res) => res.send('pong'));
 
 let win; // forward-declared so we can notify renderer
+let queueWin; // queue window
+let moreWin; // more menu window
 
 authApp.get('/callback', async (req, res) => {
   try {
@@ -234,6 +236,11 @@ ipcMain.handle('setVolume', async (_e, pct) => {
   return pct;
 });
 
+ipcMain.handle('getQueue', async () => {
+  const queue = await callSpotify('GET', '/me/player/queue');
+  return queue;
+});
+
 ipcMain.handle('logout', async () => {
   await clearRefreshToken();
   accessToken = null; refreshToken = null; tokenExpiry = 0;
@@ -272,7 +279,7 @@ async function tryRestore() {
 function createWindow() {
   win = new BrowserWindow({
     width: 380,
-    height: 220,
+    height: 190,
     frame: false,
     transparent: true,
     backgroundColor: '#00000000',
@@ -301,6 +308,173 @@ function createWindow() {
   // win.webContents.openDevTools({ mode: 'detach' }); //optional
 }
 
+// ===== Queue Window =====
+function createQueueWindow() {
+  if (queueWin) {
+    queueWin.focus();
+    return;
+  }
+
+  queueWin = new BrowserWindow({
+    width: 304,
+    height: 120,
+    frame: false,
+    transparent: true,
+    backgroundColor: '#00000000',
+    resizable: false,
+    alwaysOnTop: true,
+    show: false,
+    webPreferences: {
+      preload: path.join(__dirname, 'preload.js'),
+      nodeIntegration: false,
+      contextIsolation: true,
+      enableRemoteModule: false,
+      sandbox: true,
+    }
+  });
+
+  queueWin.loadFile('queue.html');
+
+  // Position queue window above the main player window
+  const [x, y] = win.getPosition();
+  const queueWidth = 70;
+  const queueHeight = 70;
+  queueWin.setPosition(x + queueWidth, y - queueHeight - 10);
+
+  // Make queue window follow main window
+  const moveHandler = () => {
+    try {
+      if (queueWin && !queueWin.isDestroyed()) {
+        const [newX, newY] = win.getPosition();
+        queueWin.setPosition(newX + queueWidth, newY - queueHeight - 10);
+      }
+    } catch (e) {}
+  };
+  win.on('move', moveHandler);
+
+  queueWin.once('ready-to-show', () => {
+    queueWin.show();
+    try {
+      if (win && !win.isDestroyed()) {
+        win.webContents.send('queueOpened');
+      }
+    } catch (e) {}
+  });
+
+  queueWin.on('closed', () => {
+    queueWin = null;
+    try {
+      if (win && !win.isDestroyed()) {
+        win.removeListener('move', moveHandler);
+        win.webContents.send('queueClosed');
+      }
+    } catch (e) {}
+  });
+}
+
+ipcMain.handle('toggleQueue', () => {
+  // Close more window if open
+  if (moreWin && !moreWin.isDestroyed()) {
+    try {
+      moreWin.close();
+    } catch (e) {}
+    moreWin = null;
+  }
+
+  if (queueWin && !queueWin.isDestroyed()) {
+    try {
+      queueWin.close();
+    } catch (e) {}
+    queueWin = null;
+  } else {
+    createQueueWindow();
+  }
+  return !queueWin;
+});
+
+// ===== More Window =====
+function createMoreWindow() {
+  if (moreWin) {
+    moreWin.focus();
+    return;
+  }
+
+  moreWin = new BrowserWindow({
+    width: 304,
+    height: 140,
+    frame: false,
+    transparent: true,
+    resizable: false,
+    alwaysOnTop: true,
+    show: false,
+    webPreferences: {
+      preload: path.join(__dirname, 'preload.js'),
+      nodeIntegration: false,
+      contextIsolation: true,
+      enableRemoteModule: false,
+      sandbox: true,
+    }
+  });
+
+  moreWin.loadFile('more.html');
+
+  // Position more window above the main player window
+  const [x, y] = win.getPosition();
+  const moreWidth = 230;
+  const moreHeight = 80;
+  moreWin.setPosition(x + moreWidth, y - moreHeight - 10);
+
+  // Make more window follow main window
+  const moveHandler = () => {
+    try {
+      if (moreWin && !moreWin.isDestroyed()) {
+        const [newX, newY] = win.getPosition();
+        moreWin.setPosition(newX + moreWidth, newY - moreHeight - 10);
+      }
+    } catch (e) {}
+  };
+  win.on('move', moveHandler);
+
+  moreWin.once('ready-to-show', () => {
+    moreWin.show();
+    try {
+      if (win && !win.isDestroyed()) {
+        win.webContents.send('moreOpened');
+      }
+    } catch (e) {}
+  });
+
+  moreWin.on('closed', () => {
+    moreWin = null;
+    try {
+      if (win && !win.isDestroyed()) {
+        win.removeListener('move', moveHandler);
+        win.webContents.send('moreClosed');
+      }
+    } catch (e) {}
+  });
+}
+
+ipcMain.handle('toggleMore', () => {
+  // Close queue window if open
+  if (queueWin && !queueWin.isDestroyed()) {
+    try {
+      queueWin.close();
+    } catch (e) {}
+    queueWin = null;
+  }
+
+  if (moreWin && !moreWin.isDestroyed()) {
+    try {
+      moreWin.close();
+    } catch (e) {}
+    moreWin = null;
+  } else {
+    createMoreWindow();
+  }
+  return !moreWin;
+});
+
 app.whenReady().then(async () => {
   // Set app icon for taskbar and system
   const iconPath = path.join(__dirname, 'assets/MiniBoxIcon2.ico');
@@ -325,6 +499,28 @@ app.whenReady().then(async () => {
       win.webContents.send('authed');
     });
   }
+
+  app.on('before-quit', () => {
+    // Close all windows before quitting
+    if (queueWin && !queueWin.isDestroyed()) {
+      try {
+        queueWin.close();
+      } catch (e) {}
+      queueWin = null;
+    }
+    if (moreWin && !moreWin.isDestroyed()) {
+      try {
+        moreWin.close();
+      } catch (e) {}
+      moreWin = null;
+    }
+    if (win && !win.isDestroyed()) {
+      try {
+        win.close();
+      } catch (e) {}
+      win = null;
+    }
+  });
 
   app.on('activate', () => {
     if (BrowserWindow.getAllWindows().length === 0) createWindow();

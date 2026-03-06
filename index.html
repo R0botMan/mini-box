@@ -10,6 +10,49 @@
       padding: 0;
       background: transparent;
       font-family: 'Pixelify Sans', sans-serif;
+      width: 100%;
+      height: 100vh;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+
+    .next-song-message {
+      position: absolute;
+      bottom: 140px;
+      left: 0;
+      right: 0;
+      display: none;
+      align-items: center;
+      justify-content: center;
+      background: rgba(12,12,12,0.65);
+      color: #fff;
+      padding: 8px 12px;
+      border-radius: 6px;
+      font-size: 11px;
+      max-width: 340px;
+      margin: 0 auto 8px;
+      box-shadow: 0 6px 20px rgba(0,0,0,.35);
+      animation: slideUp 0.3s ease-out;
+      -webkit-app-region: no-drag;
+      pointer-events: none;
+      z-index: 20;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+    .next-song-message.show {
+      display: flex;
+    }
+    @keyframes slideUp {
+      from {
+        opacity: 0;
+        transform: translateY(10px);
+      }
+      to {
+        opacity: 1;
+        transform: translateY(0);
+      }
     }
 
     .box {
@@ -21,7 +64,6 @@
       color: #fff;
       font-family: inherit;
       -webkit-app-region: drag;
-      box-shadow: 0 6px 20px rgba(0,0,0,.35);
       overflow: visible;
       position: relative; /* for absolute children (progress/volume pop) */
     }
@@ -88,10 +130,10 @@
 
     /* Volume popup */
     .vol-pop{
-      position:absolute; right: var(--pad); top: 8px;
+      position:absolute; right: var(--pad); top: -36px; right: 1px;
       display:none; align-items:center; gap:8px;
-      padding:6px 8px; background:rgba(20,20,20,.9);
-      border-radius:8px; box-shadow:0 6px 16px rgba(0,0,0,.35);
+      padding:6px 8px; background: rgba(12,12,12,0.65);
+      border-radius:8px; 
       -webkit-app-region:no-drag; z-index:5;
     }
     .vol-pop .mini-icon{
@@ -131,8 +173,8 @@
     /* More menu popup */
     .more-menu {
       position: absolute;
-      right: 0;
-      top: 32px;
+      right: 28px;
+      top: 0;
       display: none;
       flex-direction: column;
       gap: 4px;
@@ -230,6 +272,9 @@
   </style>
 </head>
 <body>
+  <div class="next-song-message" id="nextSongMsg">
+    <span>Next: <strong id="nextSongTitle">Loading...</strong></span>
+  </div>
   <div class="box">
     <div class="art-frame"><div class="art" id="art"></div></div>
 
@@ -247,6 +292,7 @@
       <button class="pixel-btn" id="volBtn" style="--icon:url('./assets/VolumeButton.png')" title="Volume"></button>
     </div>
     <div class="options"> 
+      <button class="pixel-btn" id="queueBtn" style="--icon:url('./assets/QueueButton.png')" title="Queue"></button>
       <button class="pixel-btn" id="moreBtn" style="--icon:url('./assets/MoreButton.png')" title="More"></button>
       <div class="more-menu" id="moreMenu">
         <button id="accountBtn">Account</button>
@@ -292,6 +338,7 @@
     const btnPrev  = document.getElementById('prev');
     const btnPlay  = document.getElementById('play');
     const btnNext  = document.getElementById('next');
+    const btnQueue = document.getElementById('queueBtn');
     const btnLogin = document.getElementById('login');
     const moreBtn  = document.getElementById('moreBtn');
 
@@ -315,6 +362,10 @@
     const barEl  = document.getElementById('bar');
     const fillEl = document.getElementById('fill');
 
+    // Next song message refs
+    const nextSongMsg = document.getElementById('nextSongMsg');
+    const nextSongTitle = document.getElementById('nextSongTitle');
+
     // Volume refs
     const volBtn  = document.getElementById('volBtn');
     const volPop  = document.getElementById('volPop');
@@ -326,13 +377,16 @@
 
     let isPlaying = false;
     let pollId = null;
+    let isQueueOpen = false;
+    let isMoreOpen = false;
+    let isVolPopOpen = false;
 
     function setControlsEnabled(on) {
       [btnPrev, btnPlay, btnNext, volBtn].forEach(b => b.disabled = !on);
     }
     function setControlsVisible(visible) {
       [btnPrev, btnPlay, btnNext, volBtn].forEach(b => b.style.display = visible ? 'inline-block' : 'none');
-      // moreBtn stays visible always
+      // moreBtn and queueBtn stay visible always
     }
     function setMenuOptionsVisible(visible) {
       accountBtn.style.display = visible ? 'block' : 'none';
@@ -377,6 +431,10 @@
     }
 
     function openVolPop() {
+      isVolPopOpen = true;
+      // Close queue and more windows when volume popup opens
+      if (isQueueOpen) window.api.toggleQueue().catch(()=>{});
+      if (isMoreOpen) window.api.toggleMore().catch(()=>{});
       volPop.style.display = 'flex';
       window.api.getVolume().then(v => {
         if (typeof v === 'number') {
@@ -390,6 +448,7 @@
         const onDocClick = (e) => {
           if (!volPop.contains(e.target) && e.target !== volBtn) {
             volPop.style.display = 'none';
+            isVolPopOpen = false;
             document.removeEventListener('mousedown', onDocClick);
           }
         };
@@ -401,6 +460,7 @@
       e.stopPropagation();
       const shown = volPop.style.display === 'flex';
       volPop.style.display = shown ? 'none' : 'flex';
+      isVolPopOpen = !shown;
       if (!shown) openVolPop();
     });
 
@@ -454,6 +514,7 @@
           isPlaying = false; setPlayIcon();
           if (art) art.style.backgroundImage = '';
           currentDuration = 0; currentProgress = 0; renderProgress();
+          nextSongMsg.classList.remove('show');
           return;
         }
 
@@ -474,6 +535,27 @@
         currentProgress = data.progress_ms || 0;
         renderProgress();
 
+        // Check if within 10 seconds of song ending and show next song message
+        // Don't show if queue window, more window, or volume popup are open
+        const timeRemaining = currentDuration - currentProgress;
+        if (timeRemaining <= 15000 && timeRemaining > 0 && isPlaying && !isQueueOpen && !isMoreOpen && !isVolPopOpen) {
+          try {
+            const queue = await window.api.getQueue();
+            if (queue?.queue && queue.queue.length > 0) {
+              const nextSong = queue.queue[0];
+              nextSongTitle.textContent = nextSong.name + ' - ' + (nextSong.artists?.[0]?.name || 'Unknown');
+              nextSongMsg.classList.add('show');
+            } else {
+              nextSongMsg.classList.remove('show');
+            }
+          } catch (e) {
+            console.error('Failed to fetch queue:', e);
+            nextSongMsg.classList.remove('show');
+          }
+        } else {
+          nextSongMsg.classList.remove('show');
+        }
+
         // Try to sync volume (some endpoints don't include device; fall back to getVolume)
         window.api.getVolume().then(v => {
           if (typeof v === 'number') {
@@ -489,6 +571,14 @@
       if (isPlaying && currentDuration > 0) {
         currentProgress = Math.min(currentDuration, currentProgress + 250);
         renderProgress();
+
+        // Check if we just entered the 10-second window
+        const timeRemaining = currentDuration - currentProgress;
+        if (timeRemaining <= 10000 && timeRemaining > 0) {
+          if (!nextSongMsg.classList.contains('show')) {
+            refresh().catch(() => {});
+          }
+        }
       }
     }, 250);
 
@@ -527,6 +617,7 @@
         currentDuration = 0;
         currentProgress = 0;
         renderProgress();
+        nextSongMsg.classList.remove('show');
       }
     }
 
@@ -537,6 +628,13 @@
     // Controls
     btnPrev.onclick = () => window.api.prev().catch(console.error);
     btnNext.onclick = () => window.api.next().catch(console.error);
+    btnQueue.onclick = async () => {
+      try {
+        await window.api.toggleQueue();
+      } catch (err) {
+        console.error('toggleQueue failed', err);
+      }
+    };
     btnPlay.onclick = async () => {
       isPlaying = !isPlaying; setPlayIcon();
       try { await window.api.playPause(); setTimeout(refresh, 300); }
@@ -544,58 +642,16 @@
     };
 
     // More menu handlers
-    moreBtn.addEventListener('click', (e) => {
-      e.stopPropagation();
-      moreMenu.classList.toggle('show');
-    });
-
-    closeMenuBtn.addEventListener('click', (e) => {
-      e.stopPropagation();
-      confirmTitle.textContent = 'Close App?';
-      confirmMessage.textContent = 'Are you sure you want to close MiniBox?';
-      confirmAction = async () => {
-        try {
-          await window.api.closeApp();
-        } catch (err) {
-          console.error('closeApp failed', err);
-        }
-      };
-      confirmDialog.classList.add('show');
-    });
-
-    signOutBtn.addEventListener('click', async (e) => {
-      e.stopPropagation();
-      confirmTitle.textContent = 'Sign Out?';
-      confirmMessage.textContent = 'Are you sure you want to sign out?';
-      confirmAction = async () => {
-        try {
-          await window.api.logout();
-          moreMenu.classList.remove('show');
-          confirmDialog.classList.remove('show');
-          checkAuthAndInit();
-        } catch (err) {
-          console.error('logout failed', err);
-        }
-      };
-      confirmDialog.classList.add('show');
-    });
-
-    accountBtn.addEventListener('click', async (e) => {
+    moreBtn.addEventListener('click', async (e) => {
       e.stopPropagation();
       try {
-        await window.api.openSpotifyAccount();
-        moreMenu.classList.remove('show');
+        await window.api.toggleMore();
       } catch (err) {
-        console.error('openSpotifyAccount failed', err);
+        console.error('toggleMore failed', err);
       }
     });
 
-    // Close menu when clicking outside
-    document.addEventListener('mousedown', (e) => {
-      if (!moreMenu.contains(e.target) && e.target !== moreBtn) {
-        moreMenu.classList.remove('show');
-      }
-    });
+
 
     // Confirmation dialog handlers
     confirmYes.addEventListener('click', (e) => {
@@ -618,6 +674,25 @@
         confirmDialog.classList.remove('show');
         confirmAction = null;
       }
+    });
+
+    // Queue window state listeners
+    window.api.onQueueOpened(() => {
+      isQueueOpen = true;
+      nextSongMsg.classList.remove('show');
+    });
+
+    window.api.onQueueClosed(() => {
+      isQueueOpen = false;
+    });
+
+    // More window state listeners
+    window.api.onMoreOpened(() => {
+      isMoreOpen = true;
+    });
+
+    window.api.onMoreClosed(() => {
+      isMoreOpen = false;
     });
 
     setPlayIcon();

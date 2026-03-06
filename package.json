@@ -1,7 +1,7 @@
 {
   "name": "mini-box",
   "version": "1.0.0",
-  "description": "Tiny draggable Spotify mini player",
+  "description": "Launch MiniBox",
   "author": "RobotMan",
   "main": "main.js",
   "scripts": {
@@ -13,11 +13,13 @@
   },
   "build": {
     "appId": "com.minibox.spotify",
-    "productName": "Mini Box",
+    "productName": "MiniBox",
     "files": [
       "main.js",
       "preload.js",
       "index.html",
+      "queue.html",
+      "more.html",
       "assets/**"
     ],
     "directories": {
@@ -29,7 +31,7 @@
         "portable"
       ],
       "icon": "assets/MiniBoxIcon2.png",
-      "executableName": "Mini Box",
+      "executableName": "MiniBox",
       "signAndEditExecutable": true
     },
     "nsis": {

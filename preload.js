@@ -20,4 +20,11 @@ contextBridge.exposeInMainWorld('api', {
   shrinkForOptions:(px) => ipcRenderer.invoke('shrinkAfterOptions', px),
   openSpotifyAccount: () => ipcRenderer.invoke('openSpotifyAccount'),
   closeApp: () => ipcRenderer.invoke('closeApp'),
+  getQueue: () => ipcRenderer.invoke('getQueue'),
+  toggleQueue: () => ipcRenderer.invoke('toggleQueue'),
+  toggleMore: () => ipcRenderer.invoke('toggleMore'),
+  onQueueOpened: (cb) => ipcRenderer.on('queueOpened', cb),
+  onQueueClosed: (cb) => ipcRenderer.on('queueClosed', cb),
+  onMoreOpened: (cb) => ipcRenderer.on('moreOpened', cb),
+  onMoreClosed: (cb) => ipcRenderer.on('moreClosed', cb),
 });
