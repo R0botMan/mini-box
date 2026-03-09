@@ -67,6 +67,10 @@
       background: rgba(255, 255, 255, 0.15);
     }
 
+    .more-btn.hidden {
+      display: none;
+    }
+
     .confirm-buttons {
       display: none;
       flex-direction: row;
@@ -183,6 +187,41 @@
     confirmNo.addEventListener('click', () => {
       hideConfirm();
     });
+
+    // Listen for authentication state changes
+    if (window.api && window.api.onLoggedOut) {
+      window.api.onLoggedOut(() => {
+        accountBtn.classList.add('hidden');
+        signOutBtn.classList.add('hidden');
+      });
+    }
+
+    if (window.api && window.api.onAuthed) {
+      window.api.onAuthed(() => {
+        accountBtn.classList.remove('hidden');
+        signOutBtn.classList.remove('hidden');
+      });
+    }
+
+    // Check initial auth state
+    async function checkAuthStateOnLoad() {
+      try {
+        const authed = await window.api.isAuthed();
+        if (!authed) {
+          accountBtn.classList.add('hidden');
+          signOutBtn.classList.add('hidden');
+        }
+      } catch (err) {
+        console.error('Failed to check auth state:', err);
+      }
+    }
+
+    // Check auth state when window loads
+    if (document.readyState === 'loading') {
+      document.addEventListener('DOMContentLoaded', checkAuthStateOnLoad);
+    } else {
+      checkAuthStateOnLoad();
+    }
   </script>
 </body>
 </html>

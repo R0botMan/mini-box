@@ -386,7 +386,7 @@
     }
     function setControlsVisible(visible) {
       [btnPrev, btnPlay, btnNext, volBtn].forEach(b => b.style.display = visible ? 'inline-block' : 'none');
-      // moreBtn and queueBtn stay visible always
+      btnQueue.style.display = visible ? 'inline-block' : 'none';
     }
     function setMenuOptionsVisible(visible) {
       accountBtn.style.display = visible ? 'block' : 'none';

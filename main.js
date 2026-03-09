@@ -193,6 +193,8 @@ authApp.get('/callback', async (req, res) => {
     await exchangeCodeForToken(req.query.code);
     console.log('[auth] access token set?', !!accessToken, 'expires in ~', Math.round((tokenExpiry - Date.now())/1000), 's');
     if (win) win.webContents.send('authed'); // push to renderer
+    if (moreWin && !moreWin.isDestroyed()) moreWin.webContents.send('authed'); // push to more window
+    if (queueWin && !queueWin.isDestroyed()) queueWin.webContents.send('authed'); // push to queue window
     res.send('<script>window.close()</script><p>Logged in. You can close this window.</p>');
   } catch (e) {
     console.error('[auth] exchange failed:', e);
@@ -245,6 +247,8 @@ ipcMain.handle('logout', async () => {
   await clearRefreshToken();
   accessToken = null; refreshToken = null; tokenExpiry = 0;
   if (win) win.webContents.send('loggedOut');
+  if (moreWin && !moreWin.isDestroyed()) moreWin.webContents.send('loggedOut');
+  if (queueWin && !queueWin.isDestroyed()) queueWin.webContents.send('loggedOut');
   return true;
 });
 

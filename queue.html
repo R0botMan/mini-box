@@ -283,6 +283,13 @@
     // Refresh queue every 2 seconds
     setInterval(refreshQueue, 2000);
     refreshQueue();
+
+    // Close queue window when user logs out
+    if (window.api && window.api.onLoggedOut) {
+      window.api.onLoggedOut(() => {
+        window.close();
+      });
+    }
   </script>
 </body>
 </html>
