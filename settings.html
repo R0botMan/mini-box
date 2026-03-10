@@ -241,8 +241,12 @@
 
       <div class="settings-item">
         <span class="settings-label">Version:</span>
+        <span class="runtime-display" id="version">v1.0.0</span>
+      </div>
+
+      <div class="settings-item">
+        <span class="settings-label">Check Updates:</span>
         <div style="display: flex; gap: 4px; align-items: center;">
-          <span class="runtime-display" id="version">v1.0.0</span>
           <button class="theme-btn" id="checkUpdatesBtn" style="padding: 2px 6px; font-size: 9px;">Check</button>
           <span class="runtime-display" id="updateStatus"></span>
         </div>
@@ -327,7 +331,7 @@
       try {
         await window.api.checkForUpdates();
       } catch (err) {
-        updateStatusDisplay.textContent = 'Error checking updates';
+        updateStatusDisplay.textContent = 'Error';
         console.error('Failed to check for updates:', err);
       } finally {
         checkUpdatesBtn.disabled = false;
