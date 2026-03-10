@@ -10,7 +10,6 @@ Hello! MiniBox is a simple tiny, draggable Spotify mini player for Windows that 
 
 ## Screenshots
 
-![MiniBox Startup](assets/Screenshot1.png)
 ![MiniBox Playing a Track](assets/Screenshot2.png)
 
 ## Features
