@@ -313,12 +313,32 @@ ipcMain.handle('getBuildInfo', async () => {
 ipcMain.handle('checkForUpdates', async () => {
   updateStatus = 'checking';
   broadcastUpdateStatus();
+  
+  // Set a timeout in case autoUpdater events never fire
+  const timeoutId = setTimeout(() => {
+    if (updateStatus === 'checking') {
+      updateStatus = 'error';
+      broadcastUpdateStatus();
+      console.error('[updater] Update check timeout - no response from GitHub');
+    }
+  }, 15000);
+  
+  // Trigger the check - completion will be handled by event listeners
   try {
-    const result = await autoUpdater.checkForUpdates();
-    return result;
+    autoUpdater.checkForUpdates();
+    // Clear timeout once we get a response (any event sets updateStatus away from 'checking')
+    const checkInterval = setInterval(() => {
+      if (updateStatus !== 'checking') {
+        clearInterval(checkInterval);
+        clearTimeout(timeoutId);
+      }
+    }, 100);
+    return true;
   } catch (err) {
+    clearTimeout(timeoutId);
     updateStatus = 'error';
     broadcastUpdateStatus();
+    console.error('[updater] Check trigger failed:', err.message);
     throw err;
   }
 });
@@ -680,43 +700,57 @@ app.whenReady().then(async () => {
     console.warn('[icon] Failed to set app icon:', e.message);
   }
 
-  // Setup auto-updater
+  // Setup auto-updater (always setup so handlers work when manually triggered)
+  autoUpdater.logger = console;
+  
+  // Explicitly configure GitHub provider
+  autoUpdater.setFeedURL({
+    provider: 'github',
+    owner: 'R0botMan',
+    repo: 'mini-box'
+  });
+  
+  autoUpdater.on('checking-for-update', () => {
+    console.log('[updater] Checking for updates...');
+  });
+  
+  autoUpdater.on('update-available', (info) => {
+    updateStatus = 'available';
+    updateInfo = info;
+    broadcastUpdateStatus();
+    console.log('[updater] Update available:', info.version);
+  });
+  
+  autoUpdater.on('update-not-available', () => {
+    updateStatus = 'not-available';
+    updateInfo = null;
+    broadcastUpdateStatus();
+    console.log('[updater] No updates available');
+  });
+  
+  autoUpdater.on('download-progress', (progress) => {
+    updateStatus = 'downloading';
+    updateInfo = { ...updateInfo, downloadProgress: progress };
+    broadcastUpdateStatus();
+  });
+  
+  autoUpdater.on('update-downloaded', (info) => {
+    updateStatus = 'ready';
+    updateInfo = info;
+    broadcastUpdateStatus();
+    console.log('[updater] Update downloaded, ready to install');
+  });
+  
+  autoUpdater.on('error', (err) => {
+    updateStatus = 'error';
+    updateInfo = null;
+    broadcastUpdateStatus();
+    console.error('[updater] Error:', err.message || err);
+  });
+  
+  // Auto-check for updates in production mode
   if (process.env.NODE_ENV === 'production' || process.env.FORCE_UPDATER) {
     autoUpdater.checkForUpdatesAndNotify();
-    
-    autoUpdater.on('update-available', (info) => {
-      updateStatus = 'available';
-      updateInfo = info;
-      broadcastUpdateStatus();
-      console.log('[updater] Update available:', info.version);
-    });
-    
-    autoUpdater.on('update-not-available', () => {
-      updateStatus = 'not-available';
-      updateInfo = null;
-      broadcastUpdateStatus();
-      console.log('[updater] No updates available');
-    });
-    
-    autoUpdater.on('download-progress', (progress) => {
-      updateStatus = 'downloading';
-      updateInfo = { ...updateInfo, downloadProgress: progress };
-      broadcastUpdateStatus();
-    });
-    
-    autoUpdater.on('update-downloaded', (info) => {
-      updateStatus = 'ready';
-      updateInfo = info;
-      broadcastUpdateStatus();
-      console.log('[updater] Update downloaded, ready to install');
-    });
-    
-    autoUpdater.on('error', (err) => {
-      updateStatus = 'error';
-      updateInfo = null;
-      broadcastUpdateStatus();
-      console.error('[updater] Error:', err);
-    });
   }
 
   // try to restore first

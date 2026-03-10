@@ -245,7 +245,7 @@
       </div>
 
       <div class="settings-item">
-        <span class="settings-label">Check Updates:</span>
+        <span class="settings-label">Update:</span>
         <div style="display: flex; gap: 4px; align-items: center;">
           <button class="theme-btn" id="checkUpdatesBtn" style="padding: 2px 6px; font-size: 9px;">Check</button>
           <span class="runtime-display" id="updateStatus"></span>
@@ -361,7 +361,7 @@
           };
         } else if (status === 'not-available') {
           updateStatusDisplay.textContent = 'Up to date';
-          checkUpdatesBtn.textContent = 'Check Updates';
+          checkUpdatesBtn.textContent = 'Check';
           checkUpdatesBtn.disabled = false;
           checkUpdatesBtn.onclick = async () => {
             checkUpdatesBtn.disabled = true;
@@ -377,7 +377,7 @@
           };
         } else if (status === 'error') {
           updateStatusDisplay.textContent = 'Error';
-          checkUpdatesBtn.textContent = 'Check Updates';
+          checkUpdatesBtn.textContent = 'Check';
           checkUpdatesBtn.disabled = false;
         }
       });
