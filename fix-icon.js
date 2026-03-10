@@ -1,7 +1,7 @@
 const path = require('path');
 const { spawn } = require('child_process');
 
-const exePath = path.join(__dirname, 'dist', 'win-unpacked', 'Mini Box.exe');
+const exePath = path.join(__dirname, 'dist', 'win-unpacked', 'MiniBox.exe');
 const icoPath = path.join(__dirname, 'assets', 'MiniBoxIcon2.ico');
 
 // Try using rcedit from electron-builder
