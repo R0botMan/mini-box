@@ -6,10 +6,6 @@ Hello! MiniBox is a simple tiny, draggable Spotify mini player for Windows that 
 
 **[Download Latest Release](../../releases/latest)**
 
-Or choose your preferred version:
-- **Installer (.exe)** - Standard Windows installer
-- **Portable (.exe)** - No installation needed, run directly
-
 **Security Note:** Only download from the [official releases](../../releases/latest) on this repository. Always verify the repository URL before installation.
 
 ## Screenshots
@@ -24,7 +20,8 @@ These are the features of the app:
 - Lightweight and minimal UI  
 - Control playback from your desktop  
 - Always-on-top window  
-- Transparent draggable interface  
+- Transparent draggable interface
+- Theme system preference 
 - Secure Spotify authentication
 
 ## Requirements
