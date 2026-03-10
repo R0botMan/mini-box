@@ -1,6 +1,6 @@
 {
   "name": "mini-box",
-  "version": "1.0.0",
+  "version": "1.1.0",
   "description": "Launch MiniBox",
   "author": "RobotMan",
   "main": "main.js",
@@ -20,7 +20,9 @@
       "index.html",
       "queue.html",
       "more.html",
-      "assets/**"
+      "settings.html",
+      "assets/**",
+      "context/**"
     ],
     "directories": {
       "buildResources": "assets"
@@ -46,6 +48,11 @@
       ],
       "category": "Audio",
       "icon": "assets/MiniBoxIcon2.png"
+    },
+    "publish": {
+      "provider": "github",
+      "owner": "R0botMan",
+      "repo": "mini-box"
     }
   },
   "license": "ISC",
@@ -56,6 +63,8 @@
     "rcedit": "^5.0.2"
   },
   "dependencies": {
+    "electron-store": "^11.0.2",
+    "electron-updater": "^6.8.3",
     "express": "^5.1.0",
     "keytar": "^7.9.0",
     "node-fetch": "^3.3.2",

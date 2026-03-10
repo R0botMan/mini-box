@@ -1,6 +1,10 @@
 // ===== Electron & Node =====
 const { app, BrowserWindow, ipcMain, shell, nativeImage } = require('electron');
 const path = require('path');
+const { autoUpdater } = require('electron-updater');
+
+// ===== Storage =====
+const storage = require('./context/storage');
 
 // ===== Secure storage =====
 const keytar = require('keytar');
@@ -186,6 +190,13 @@ authApp.get('/ping', (_req, res) => res.send('pong'));
 let win; // forward-declared so we can notify renderer
 let queueWin; // queue window
 let moreWin; // more menu window
+let settingsWin; // settings window
+
+// App state
+let appStartTime = storage.getAppStartTime(); // load saved or use default from storage
+let currentTheme = storage.getTheme(); // load saved theme
+let updateStatus = 'idle'; // idle, checking, available, not-available, downloading, ready
+let updateInfo = null; // holds update info if available
 
 authApp.get('/callback', async (req, res) => {
   try {
@@ -195,6 +206,7 @@ authApp.get('/callback', async (req, res) => {
     if (win) win.webContents.send('authed'); // push to renderer
     if (moreWin && !moreWin.isDestroyed()) moreWin.webContents.send('authed'); // push to more window
     if (queueWin && !queueWin.isDestroyed()) queueWin.webContents.send('authed'); // push to queue window
+    if (settingsWin && !settingsWin.isDestroyed()) settingsWin.webContents.send('authed'); // push to settings window
     res.send('<script>window.close()</script><p>Logged in. You can close this window.</p>');
   } catch (e) {
     console.error('[auth] exchange failed:', e);
@@ -246,9 +258,17 @@ ipcMain.handle('getQueue', async () => {
 ipcMain.handle('logout', async () => {
   await clearRefreshToken();
   accessToken = null; refreshToken = null; tokenExpiry = 0;
+  
+  // Close settings window on logout
+  if (settingsWin && !settingsWin.isDestroyed()) {
+    settingsWin.close();
+    settingsWin = null;
+  }
+  
   if (win) win.webContents.send('loggedOut');
   if (moreWin && !moreWin.isDestroyed()) moreWin.webContents.send('loggedOut');
   if (queueWin && !queueWin.isDestroyed()) queueWin.webContents.send('loggedOut');
+  if (settingsWin && !settingsWin.isDestroyed()) settingsWin.webContents.send('loggedOut');
   return true;
 });
 
@@ -261,6 +281,62 @@ ipcMain.handle('closeApp', async () => {
   app.quit();
   return true;
 });
+
+// ===== App Runtime & Theme =====
+ipcMain.handle('getAppRuntime', async () => {
+  return storage.getTotalRuntimeWithCurrentSession(appStartTime);
+});
+
+ipcMain.handle('setTheme', async (_e, theme) => {
+  currentTheme = theme;
+  storage.setTheme(theme); // persist theme
+  // Broadcast theme change to all windows
+  if (win && !win.isDestroyed()) win.webContents.send('themeChanged', theme);
+  if (moreWin && !moreWin.isDestroyed()) moreWin.webContents.send('themeChanged', theme);
+  if (queueWin && !queueWin.isDestroyed()) queueWin.webContents.send('themeChanged', theme);
+  if (settingsWin && !settingsWin.isDestroyed()) settingsWin.webContents.send('themeChanged', theme);
+  return theme;
+});
+
+ipcMain.handle('getTheme', async () => {
+  return currentTheme;
+});
+
+ipcMain.handle('getVersion', async () => {
+  return app.getVersion();
+});
+
+ipcMain.handle('getBuildInfo', async () => {
+  return `Electron ${process.versions.electron}`;
+});
+
+ipcMain.handle('checkForUpdates', async () => {
+  updateStatus = 'checking';
+  broadcastUpdateStatus();
+  try {
+    const result = await autoUpdater.checkForUpdates();
+    return result;
+  } catch (err) {
+    updateStatus = 'error';
+    broadcastUpdateStatus();
+    throw err;
+  }
+});
+
+ipcMain.handle('getUpdateStatus', async () => {
+  return { status: updateStatus, info: updateInfo };
+});
+
+ipcMain.handle('installUpdate', async () => {
+  autoUpdater.quitAndInstall();
+});
+
+function broadcastUpdateStatus() {
+  if (win && !win.isDestroyed()) win.webContents.send('updateStatusChanged', { status: updateStatus, info: updateInfo });
+  if (settingsWin && !settingsWin.isDestroyed()) settingsWin.webContents.send('updateStatusChanged', { status: updateStatus, info: updateInfo });
+  if (moreWin && !moreWin.isDestroyed()) moreWin.webContents.send('updateStatusChanged', { status: updateStatus, info: updateInfo });
+  if (queueWin && !queueWin.isDestroyed()) queueWin.webContents.send('updateStatusChanged', { status: updateStatus, info: updateInfo });
+}
 
 async function tryRestore() {
   const stored = await loadRefreshToken();
@@ -279,7 +355,7 @@ async function tryRestore() {
   }
 }
 
-// ===== Window =====
+// ===== Main Window =====
 function createWindow() {
   win = new BrowserWindow({
     width: 380,
@@ -385,6 +461,14 @@ ipcMain.handle('toggleQueue', () => {
     moreWin = null;
   }
 
+  // Close settings window if open
+  if (settingsWin && !settingsWin.isDestroyed()) {
+    try {
+      settingsWin.close();
+    } catch (e) {}
+    settingsWin = null;
+  }
+
   if (queueWin && !queueWin.isDestroyed()) {
     try {
       queueWin.close();
@@ -468,6 +552,14 @@ ipcMain.handle('toggleMore', () => {
     queueWin = null;
   }
 
+  // Close settings window if open
+  if (settingsWin && !settingsWin.isDestroyed()) {
+    try {
+      settingsWin.close();
+    } catch (e) {}
+    settingsWin = null;
+  }
+
   if (moreWin && !moreWin.isDestroyed()) {
     try {
       moreWin.close();
@@ -477,6 +569,102 @@ ipcMain.handle('toggleMore', () => {
     createMoreWindow();
   }
   return !moreWin;
+});
+
+// ===== Settings Window =====
+function createSettingsWindow() {
+  if (settingsWin) {
+    settingsWin.focus();
+    return;
+  }
+
+  settingsWin = new BrowserWindow({
+    width: 280,
+    height: 190,
+    frame: false,
+    transparent: true,
+    backgroundColor: '#00000000',
+    resizable: false,
+    alwaysOnTop: true,
+    show: false,
+    webPreferences: {
+      preload: path.join(__dirname, 'preload.js'),
+      nodeIntegration: false,
+      contextIsolation: true,
+      enableRemoteModule: false,
+      sandbox: true,
+    }
+  });
+
+  settingsWin.loadFile('settings.html');
+
+  // Center settings window relative to main window
+  const [x, y] = win.getPosition();
+  const [winWidth, winHeight] = win.getSize();
+  const settingsWidth = 390;
+  const settingsHeight = 510;
+  const centeredX = x + (winWidth - settingsWidth) / 2;
+  const centeredY = y + (winHeight - settingsHeight) / 2;
+  settingsWin.setPosition(Math.round(centeredX), Math.round(centeredY));
+
+  // Make settings window follow main window
+  const moveHandler = () => {
+    try {
+      if (settingsWin && !settingsWin.isDestroyed()) {
+        const [newX, newY] = win.getPosition();
+        const centeredX = newX + (winWidth - settingsWidth) / 2;
+        const centeredY = newY + (winHeight - settingsHeight) / 2;
+        settingsWin.setPosition(Math.round(centeredX), Math.round(centeredY));
+      }
+    } catch (e) {}
+  };
+  win.on('move', moveHandler);
+
+  settingsWin.once('ready-to-show', () => {
+    settingsWin.show();
+    try {
+      if (win && !win.isDestroyed()) {
+        win.webContents.send('settingsOpened');
+      }
+    } catch (e) {}
+  });
+
+  settingsWin.on('closed', () => {
+    settingsWin = null;
+    try {
+      if (win && !win.isDestroyed()) {
+        win.removeListener('move', moveHandler);
+        win.webContents.send('settingsClosed');
+      }
+    } catch (e) {}
+  });
+}
+
+ipcMain.handle('toggleSettings', () => {
+  // Close queue and more windows if open
+  if (queueWin && !queueWin.isDestroyed()) {
+    try {
+      queueWin.close();
+    } catch (e) {}
+    queueWin = null;
+  }
+
+  if (moreWin && !moreWin.isDestroyed()) {
+    try {
+      moreWin.close();
+    } catch (e) {}
+    moreWin = null;
+  }
+
+  if (settingsWin && !settingsWin.isDestroyed()) {
+    try {
+      settingsWin.close();
+    } catch (e) {}
+    settingsWin = null;
+  } else {
+    createSettingsWindow();
+  }
+  return !settingsWin;
 });
 
 app.whenReady().then(async () => {
@@ -492,6 +680,45 @@ app.whenReady().then(async () => {
     console.warn('[icon] Failed to set app icon:', e.message);
   }
 
+  // Setup auto-updater
+  if (process.env.NODE_ENV === 'production' || process.env.FORCE_UPDATER) {
+    autoUpdater.checkForUpdatesAndNotify();
+    
+    autoUpdater.on('update-available', (info) => {
+      updateStatus = 'available';
+      updateInfo = info;
+      broadcastUpdateStatus();
+      console.log('[updater] Update available:', info.version);
+    });
+    
+    autoUpdater.on('update-not-available', () => {
+      updateStatus = 'not-available';
+      updateInfo = null;
+      broadcastUpdateStatus();
+      console.log('[updater] No updates available');
+    });
+    
+    autoUpdater.on('download-progress', (progress) => {
+      updateStatus = 'downloading';
+      updateInfo = { ...updateInfo, downloadProgress: progress };
+      broadcastUpdateStatus();
+    });
+    
+    autoUpdater.on('update-downloaded', (info) => {
+      updateStatus = 'ready';
+      updateInfo = info;
+      broadcastUpdateStatus();
+      console.log('[updater] Update downloaded, ready to install');
+    });
+    
+    autoUpdater.on('error', (err) => {
+      updateStatus = 'error';
+      updateInfo = null;
+      broadcastUpdateStatus();
+      console.error('[updater] Error:', err);
+    });
+  }
+
   // try to restore first
   const restored = await tryRestore();
 
@@ -505,6 +732,9 @@ app.whenReady().then(async () => {
   }
 
   app.on('before-quit', () => {
+    // Save accumulated runtime before closing
+    storage.saveTotalRuntime(appStartTime);
+    
     // Close all windows before quitting
     if (queueWin && !queueWin.isDestroyed()) {
       try {
@@ -517,6 +747,12 @@ app.whenReady().then(async () => {
         moreWin.close();
       } catch (e) {}
       moreWin = null;
+    }
+    if (settingsWin && !settingsWin.isDestroyed()) {
+      try {
+        settingsWin.close();
+      } catch (e) {}
+      settingsWin = null;
     }
     if (win && !win.isDestroyed()) {
       try {

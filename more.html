@@ -4,20 +4,38 @@
   <meta charset="utf-8" />
   <title>More</title>
   <link href="https://fonts.googleapis.com/css2?family=Pixelify+Sans&display=swap" rel="stylesheet">
+  <script src="./context/themeContext.js"></script>
   <style>
+    :root {
+      --theme-background-light: rgba(12, 12, 12, 0.65);
+      --theme-text-primary: #fff;
+      --theme-border-color: rgba(255, 255, 255, 0.1);
+      --theme-button-bg: rgba(255, 255, 255, 0.05);
+      --theme-button-bg-hover: rgba(255, 255, 255, 0.1);
+      --theme-accent-danger: rgba(255, 100, 100, 0.2);
+      --theme-accent-danger-border: rgba(255, 100, 100, 0.3);
+      --theme-accent-danger-hover: rgba(255, 100, 100, 0.3);
+      --theme-border-color-hover: rgba(255, 255, 255, 0.15);
+      --theme-button-bg-active: rgba(255, 255, 255, 0.15);
+      --theme-icon-color: #fff;
+      --theme-glitch-color-1: #3cfaff;
+      --theme-glitch-color-2: #ff3d6e;
+      --theme-blend-mode: lighten;
+    }
     html, body {
       margin: 0;
       padding: 0;
       background: transparent;
       font-family: 'Pixelify Sans', sans-serif;
+      color: var(--theme-text-primary);
     }
 
     .more-container {
       width: 120px;
-      background: rgba(12,12,12,0.65);
+      background: var(--theme-background-light);
       backdrop-filter: blur(6px);
       border-radius: 10px;
-      border: 1px solid rgba(255, 255, 255, 0.1);
+      border: 1px solid var(--theme-border-color);
       padding: 8px;
       -webkit-app-region: drag;
     }
@@ -30,7 +48,7 @@
 
     .more-message {
       display: none;
-      color: #fff;
+      color: var(--theme-text-primary);
       font-size: 10px;
       line-height: 1.3;
       padding: 8px;
@@ -47,10 +65,10 @@
 
     .more-btn {
       padding: 8px 12px;
-      background: rgba(255, 255, 255, 0.05);
-      border: 1px solid rgba(255, 255, 255, 0.08);
+      background: var(--theme-button-bg);
+      border: 1px solid var(--theme-border-color);
       border-radius: 4px;
-      color: #fff;
+      color: var(--theme-text-primary);
       font-size: 11px;
       font-family: 'Pixelify Sans', sans-serif;
       cursor: pointer;
@@ -59,12 +77,12 @@
     }
 
     .more-btn:hover {
-      background: rgba(255, 255, 255, 0.1);
-      border-color: rgba(255, 255, 255, 0.15);
+      background: var(--theme-button-bg-hover);
+      border-color: var(--theme-border-color-hover);
     }
 
     .more-btn:active {
-      background: rgba(255, 255, 255, 0.15);
+      background: var(--theme-button-bg-active);
     }
 
     .more-btn.hidden {
@@ -79,10 +97,10 @@
 
     .confirm-buttons button {
       padding: 6px 8px;
-      border: 1px solid rgba(255, 255, 255, 0.08);
+      border: 1px solid var(--theme-border-color);
       border-radius: 4px;
-      background: rgba(255, 255, 255, 0.05);
-      color: #fff;
+      background: var(--theme-button-bg);
+      color: var(--theme-text-primary);
       font-family: 'Pixelify Sans', sans-serif;
       font-size: 10px;
       cursor: pointer;
@@ -92,18 +110,18 @@
     }
 
     .confirm-buttons button:hover {
-      background: rgba(255, 255, 255, 0.1);
-      border-color: rgba(255, 255, 255, 0.15);
+      background: var(--theme-button-bg-hover);
+      border-color: var(--theme-border-color-hover);
     }
 
     .confirm-buttons .confirm-yes {
-      background: rgba(255, 100, 100, 0.2);
-      border-color: rgba(255, 100, 100, 0.3);
+      background: var(--theme-accent-danger);
+      border-color: var(--theme-accent-danger-border);
     }
 
     .confirm-buttons .confirm-yes:hover {
-      background: rgba(255, 100, 100, 0.3);
-      border-color: rgba(255, 100, 100, 0.4);
+      background: var(--theme-accent-danger-hover);
+      border-color: var(--theme-accent-danger-border);
     }
   </style>
 </head>
@@ -112,7 +130,7 @@
     <div class="more-message" id="confirmMessage"></div>
     <div class="more-list" id="moreList">
       <button class="more-btn" id="accountBtn">Account</button>
-      <button class="more-btn" id="signOutBtn">Sign Out</button>
+      <button class="more-btn" id="settingsBtn">Settings</button>
       <button class="more-btn" id="closeBtn">Close App</button>
     </div>
     <div class="confirm-buttons" id="confirmButtons">
@@ -126,7 +144,7 @@
     const confirmButtons = document.getElementById('confirmButtons');
     const confirmMessage = document.getElementById('confirmMessage');
     const accountBtn = document.getElementById('accountBtn');
-    const signOutBtn = document.getElementById('signOutBtn');
+    const settingsBtn = document.getElementById('settingsBtn');
     const closeBtn = document.getElementById('closeBtn');
     const confirmYes = document.getElementById('confirmYes');
     const confirmNo = document.getElementById('confirmNo');
@@ -157,15 +175,12 @@
       }
     });
 
-    signOutBtn.addEventListener('click', () => {
-      showConfirm('Are you sure you want to sign out of Minibox?', async () => {
-        try {
-          await window.api.logout();
-          hideConfirm();
-        } catch (err) {
-          console.error('logout failed', err);
-        }
-      });
+    settingsBtn.addEventListener('click', async () => {
+      try {
+        await window.api.toggleSettings();
+      } catch (err) {
+        console.error('toggleSettings failed', err);
+      }
     });
 
     closeBtn.addEventListener('click', () => {
@@ -192,14 +207,14 @@
     if (window.api && window.api.onLoggedOut) {
       window.api.onLoggedOut(() => {
         accountBtn.classList.add('hidden');
-        signOutBtn.classList.add('hidden');
+        settingsBtn.classList.add('hidden');
       });
     }
 
     if (window.api && window.api.onAuthed) {
       window.api.onAuthed(() => {
         accountBtn.classList.remove('hidden');
-        signOutBtn.classList.remove('hidden');
+        settingsBtn.classList.remove('hidden');
       });
     }
 
@@ -209,7 +224,7 @@
         const authed = await window.api.isAuthed();
         if (!authed) {
           accountBtn.classList.add('hidden');
-          signOutBtn.classList.add('hidden');
+          settingsBtn.classList.add('hidden');
         }
       } catch (err) {
         console.error('Failed to check auth state:', err);
@@ -222,6 +237,11 @@
     } else {
       checkAuthStateOnLoad();
     }
+
+    // Initialize theme
+    initThemeVariables();
+    loadInitialTheme();
+    setupThemeListener();
   </script>
 </body>
 </html>

@@ -1,0 +1,480 @@
+<!doctype html>
+<html>
+<head>
+  <meta charset="utf-8" />
+  <title>Settings</title>
+  <link href="https://fonts.googleapis.com/css2?family=Pixelify+Sans&display=swap" rel="stylesheet">
+  <script src="./context/themeContext.js"></script>
+  <style>
+    :root {
+      --theme-background: rgba(12, 12, 12, 0.95);
+      --theme-text-primary: #fff;
+      --theme-border-color: rgba(255, 255, 255, 0.1);
+      --theme-button-bg: rgba(255, 255, 255, 0.05);
+      --theme-button-bg-hover: rgba(255, 255, 255, 0.1);
+      --theme-button-bg-active: rgba(255, 255, 255, 0.15);
+      --theme-border-color-hover: rgba(255, 255, 255, 0.15);
+      --theme-accent-danger: rgba(255, 100, 100, 0.1);
+      --theme-accent-danger-border: rgba(255, 100, 100, 0.2);
+      --theme-accent-danger-hover: rgba(255, 100, 100, 0.2);
+      --theme-text-opacity: rgba(255, 255, 255, 0.7);
+      --theme-icon-color: #fff;
+      --theme-glitch-color-1: #3cfaff;
+      --theme-glitch-color-2: #ff3d6e;
+      --theme-blend-mode: lighten;
+    }
+
+    html, body {
+      margin: 0;
+      padding: 0;
+      background: transparent;
+      font-family: 'Pixelify Sans', sans-serif;
+      color: var(--theme-text-primary);
+      scrollbar-width: none;
+      -ms-overflow-style: none;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      width: 100%;
+      height: 100%;
+    }
+
+    html::-webkit-scrollbar,
+    body::-webkit-scrollbar {
+      display: none;
+    }
+
+    .settings-container {
+      width: 220px;
+      height: 150px;
+      background: var(--theme-background);
+      backdrop-filter: blur(6px);
+      border-radius: 10px;
+      border: 1px solid var(--theme-border-color);
+      padding: 16px;
+      -webkit-app-region: drag;
+      display: flex;
+      flex-direction: column;
+      gap: 12px;
+      overflow-y: auto;
+      scrollbar-width: none;
+      -ms-overflow-style: none;
+    }
+
+    .settings-container::-webkit-scrollbar {
+      display: none;
+    }
+
+
+
+    .settings-section {
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+      -webkit-app-region: drag;
+    }
+
+    .settings-item {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding: 8px;
+      background: rgba(255, 255, 255, 0.03);
+      border-radius: 6px;
+      border: 1px solid var(--theme-border-color);
+      -webkit-app-region: no-drag;
+    }
+
+    .settings-label {
+      font-size: 12px;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      color: var(--theme-text-primary);
+    }
+
+    .theme-toggle {
+      display: flex;
+      gap: 4px;
+    }
+
+    .theme-btn {
+      padding: 4px 8px;
+      background: var(--theme-button-bg);
+      border: 1px solid var(--theme-border-color);
+      border-radius: 4px;
+      color: var(--theme-text-primary);
+      font-size: 10px;
+      font-family: 'Pixelify Sans', sans-serif;
+      cursor: pointer;
+      transition: all 0.2s;
+    }
+
+    .theme-btn.active {
+      background: var(--theme-button-bg-active);
+      border-color: var(--theme-border-color-hover);
+    }
+
+    .theme-btn:hover {
+      background: var(--theme-button-bg-hover);
+      border-color: var(--theme-border-color-hover);
+    }
+
+    .runtime-display {
+      font-size: 11px;
+      color: var(--theme-text-opacity);
+    }
+
+    .settings-buttons {
+      display: flex;
+      gap: 8px;
+      margin-top: auto;
+      -webkit-app-region: no-drag;
+    }
+
+    .settings-btn {
+      flex: 1;
+      padding: 8px 12px;
+      background: var(--theme-button-bg);
+      border: 1px solid var(--theme-border-color);
+      border-radius: 4px;
+      color: var(--theme-text-primary);
+      font-size: 11px;
+      font-family: 'Pixelify Sans', sans-serif;
+      cursor: pointer;
+      transition: background 0.2s;
+    }
+
+    .settings-btn:hover {
+      background: var(--theme-button-bg-hover);
+      border-color: var(--theme-border-color-hover);
+    }
+
+    .settings-btn:active {
+      background: var(--theme-button-bg-active);
+    }
+
+    .settings-btn.danger {
+      background: var(--theme-accent-danger);
+      border-color: var(--theme-accent-danger-border);
+    }
+
+    .settings-btn.danger:hover {
+      background: var(--theme-accent-danger-hover);
+      border-color: var(--theme-accent-danger-border);
+    }
+
+    .confirm-dialog {
+      display: none;
+      position: absolute;
+      top: 50%;
+      left: 50%;
+      transform: translate(-50%, -50%);
+      background: var(--theme-background);
+      border: 1px solid var(--theme-accent-danger-border);
+      border-radius: 8px;
+      padding: 16px;
+      min-width: 210px;
+      z-index: 1000;
+      box-shadow: 0 8px 32px rgba(0, 0, 0, 0.5);
+    }
+
+    .confirm-dialog.show {
+      display: flex;
+      flex-direction: column;
+      gap: 12px;
+    }
+
+    .confirm-message {
+      font-size: 12px;
+      text-align: center;
+      color: var(--theme-text-primary);
+    }
+
+    .confirm-dialog-buttons {
+      display: flex;
+      gap: 8px;
+    }
+
+    .confirm-dialog-buttons button {
+      flex: 1;
+      padding: 6px 8px;
+      border: 1px solid var(--theme-border-color);
+      border-radius: 4px;
+      background: var(--theme-button-bg);
+      color: var(--theme-text-primary);
+      font-family: 'Pixelify Sans', sans-serif;
+      font-size: 10px;
+      cursor: pointer;
+      transition: background 0.2s;
+    }
+
+    .confirm-dialog-buttons button:hover {
+      background: var(--theme-button-bg-hover);
+    }
+
+    .confirm-dialog-buttons .confirm-yes {
+      background: var(--theme-accent-danger);
+      border-color: var(--theme-accent-danger-border);
+    }
+
+    .confirm-dialog-buttons .confirm-yes:hover {
+      background: var(--theme-accent-danger-hover);
+    }
+  </style>
+</head>
+<body>
+  <div class="settings-container">
+    <div class="settings-section">
+      <div class="settings-item">
+        <span class="settings-label">Theme:</span>
+        <div class="theme-toggle">
+          <button class="theme-btn active" id="darkTheme">Dark</button>
+          <button class="theme-btn" id="lightTheme">Light</button>
+        </div>
+      </div>
+
+      <div class="settings-item">
+        <span class="settings-label">App Runtime:</span>
+        <span class="runtime-display" id="runtime">00:00:00</span>
+      </div>
+
+      <div class="settings-item">
+        <span class="settings-label">Version:</span>
+        <div style="display: flex; gap: 4px; align-items: center;">
+          <span class="runtime-display" id="version">v1.0.0</span>
+          <button class="theme-btn" id="checkUpdatesBtn" style="padding: 2px 6px; font-size: 9px;">Check</button>
+          <span class="runtime-display" id="updateStatus"></span>
+        </div>
+      </div>
+
+      <div class="settings-item">
+        <span class="settings-label">Build:</span>
+        <span class="runtime-display" id="buildInfo">Electron -</span>
+      </div>
+    </div>
+
+    <div class="settings-buttons">
+      <button class="settings-btn danger" id="signOutBtn">Sign Out</button>
+    </div>
+  </div>
+
+  <div class="confirm-dialog" id="confirmDialog">
+    <div class="confirm-message" id="confirmMessage"></div>
+    <div class="confirm-dialog-buttons">
+      <button class="confirm-no" id="confirmNo">Cancel</button>
+      <button class="confirm-yes" id="confirmYes">Confirm</button>
+    </div>
+  </div>
+
+  <script>
+    const darkTheme = document.getElementById('darkTheme');
+    const lightTheme = document.getElementById('lightTheme');
+    const runtimeDisplay = document.getElementById('runtime');
+    const versionDisplay = document.getElementById('version');
+    const buildInfoDisplay = document.getElementById('buildInfo');
+    const checkUpdatesBtn = document.getElementById('checkUpdatesBtn');
+    const updateStatusDisplay = document.getElementById('updateStatus');
+    const signOutBtn = document.getElementById('signOutBtn');
+    const confirmDialog = document.getElementById('confirmDialog');
+    const confirmMessage = document.getElementById('confirmMessage');
+    const confirmYes = document.getElementById('confirmYes');
+    const confirmNo = document.getElementById('confirmNo');
+
+    let confirmAction = null;
+
+    // Format time from milliseconds
+    function formatTime(ms) {
+      const totalSeconds = Math.floor(ms / 1000);
+      const hours = Math.floor(totalSeconds / 3600);
+      const minutes = Math.floor((totalSeconds % 3600) / 60);
+      const seconds = totalSeconds % 60;
+      return `${String(hours).padStart(2, '0')}:${String(minutes).padStart(2, '0')}:${String(seconds).padStart(2, '0')}`;
+    }
+
+    // Update runtime every second
+    function updateRuntime() {
+      if (window.api && window.api.getAppRuntime) {
+        window.api.getAppRuntime().then(ms => {
+          runtimeDisplay.textContent = formatTime(ms);
+        }).catch(err => console.error('Failed to get app runtime:', err));
+      }
+    }
+
+    updateRuntime();
+    setInterval(updateRuntime, 1000);
+
+    // Load version and build info
+    function loadVersionInfo() {
+      if (window.api && window.api.getVersion) {
+        window.api.getVersion().then(version => {
+          versionDisplay.textContent = `v${version}`;
+        }).catch(err => console.error('Failed to get version:', err));
+      }
+      if (window.api && window.api.getBuildInfo) {
+        window.api.getBuildInfo().then(buildInfo => {
+          buildInfoDisplay.textContent = buildInfo;
+        }).catch(err => console.error('Failed to get build info:', err));
+      }
+    }
+
+    loadVersionInfo();
+
+    // Check for updates
+    checkUpdatesBtn.addEventListener('click', async () => {
+      checkUpdatesBtn.disabled = true;
+      updateStatusDisplay.textContent = 'Checking...';
+      try {
+        await window.api.checkForUpdates();
+      } catch (err) {
+        updateStatusDisplay.textContent = 'Error checking updates';
+        console.error('Failed to check for updates:', err);
+      } finally {
+        checkUpdatesBtn.disabled = false;
+      }
+    });
+
+    // Listen for update status changes
+    if (window.api && window.api.onUpdateStatusChanged) {
+      window.api.onUpdateStatusChanged((_e, { status, info }) => {
+        if (status === 'checking') {
+          updateStatusDisplay.textContent = 'Checking...';
+          checkUpdatesBtn.disabled = true;
+        } else if (status === 'available') {
+          updateStatusDisplay.textContent = `v${info.version} available`;
+          checkUpdatesBtn.textContent = 'Downloading...';
+          checkUpdatesBtn.disabled = true;
+        } else if (status === 'downloading') {
+          const progress = info.downloadProgress;
+          const percent = Math.round(progress.percent);
+          updateStatusDisplay.textContent = `${percent}%`;
+        } else if (status === 'ready') {
+          updateStatusDisplay.textContent = 'Ready to install';
+          checkUpdatesBtn.textContent = 'Restart & Install';
+          checkUpdatesBtn.disabled = false;
+          checkUpdatesBtn.onclick = async () => {
+            await window.api.installUpdate();
+          };
+        } else if (status === 'not-available') {
+          updateStatusDisplay.textContent = 'Up to date';
+          checkUpdatesBtn.textContent = 'Check Updates';
+          checkUpdatesBtn.disabled = false;
+          checkUpdatesBtn.onclick = async () => {
+            checkUpdatesBtn.disabled = true;
+            updateStatusDisplay.textContent = 'Checking...';
+            try {
+              await window.api.checkForUpdates();
+            } catch (err) {
+              updateStatusDisplay.textContent = 'Error checking updates';
+              console.error('Failed to check for updates:', err);
+            } finally {
+              checkUpdatesBtn.disabled = false;
+            }
+          };
+        } else if (status === 'error') {
+          updateStatusDisplay.textContent = 'Error';
+          checkUpdatesBtn.textContent = 'Check Updates';
+          checkUpdatesBtn.disabled = false;
+        }
+      });
+    }
+
+    // Load initial update status
+    if (window.api && window.api.getUpdateStatus) {
+      window.api.getUpdateStatus().then(({ status, info }) => {
+        if (status === 'available') {
+          updateStatusDisplay.textContent = `v${info.version} available`;
+          checkUpdatesBtn.textContent = 'Download';
+        } else if (status === 'ready') {
+          updateStatusDisplay.textContent = 'Ready to install';
+          checkUpdatesBtn.textContent = 'Restart & Install';
+        }
+      });
+    }
+
+    // Theme toggle
+    darkTheme.addEventListener('click', () => {
+      darkTheme.classList.add('active');
+      lightTheme.classList.remove('active');
+      if (window.api && window.api.setTheme) {
+        window.api.setTheme('dark').catch(err => console.error('Failed to set theme:', err));
+      }
+    });
+
+    lightTheme.addEventListener('click', () => {
+      lightTheme.classList.add('active');
+      darkTheme.classList.remove('active');
+      if (window.api && window.api.setTheme) {
+        window.api.setTheme('light').catch(err => console.error('Failed to set theme:', err));
+      }
+    });
+
+    // Sign out button
+    signOutBtn.addEventListener('click', () => {
+      showConfirm('Are you sure you want to sign out?', async () => {
+        try {
+          await window.api.logout();
+          hideConfirm();
+        } catch (err) {
+          console.error('Logout failed', err);
+          hideConfirm();
+        }
+      });
+    });
+
+    function showConfirm(message, action) {
+      confirmMessage.textContent = message;
+      confirmDialog.classList.add('show');
+      confirmAction = action;
+    }
+
+    function hideConfirm() {
+      confirmDialog.classList.remove('show');
+      confirmMessage.textContent = '';
+      confirmAction = null;
+    }
+
+    confirmYes.addEventListener('click', () => {
+      if (confirmAction) {
+        confirmAction();
+      }
+    });
+
+    confirmNo.addEventListener('click', () => {
+      hideConfirm();
+    });
+
+    // Listen for authentication state changes
+    if (window.api && window.api.onLoggedOut) {
+      window.api.onLoggedOut(() => {
+        // Handle logged out state - could disable sign out button
+      });
+    }
+
+    // Load theme preference
+    async function loadThemePreference() {
+      if (window.api && window.api.getTheme) {
+        const theme = await window.api.getTheme().catch(() => 'dark');
+        if (theme === 'light') {
+          lightTheme.classList.add('active');
+          darkTheme.classList.remove('active');
+        } else {
+          darkTheme.classList.add('active');
+          lightTheme.classList.remove('active');
+        }
+      }
+    }
+
+    if (document.readyState === 'loading') {
+      document.addEventListener('DOMContentLoaded', loadThemePreference);
+    } else {
+      loadThemePreference();
+    }
+
+    // Initialize theme
+    initThemeVariables();
+    loadInitialTheme();
+    setupThemeListener();
+  </script>
+</body>
+</html>
