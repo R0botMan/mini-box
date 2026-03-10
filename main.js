@@ -193,7 +193,7 @@ let moreWin; // more menu window
 let settingsWin; // settings window
 
 // App state
-let appStartTime = storage.getAppStartTime(); // load saved or use default from storage
+let appStartTime = Date.now(); // always start fresh for this session
 let currentTheme = storage.getTheme(); // load saved theme
 let updateStatus = 'idle'; // idle, checking, available, not-available, downloading, ready
 let updateInfo = null; // holds update info if available
