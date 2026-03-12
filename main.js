@@ -5,6 +5,7 @@ const { autoUpdater } = require('electron-updater');
 
 // ===== Storage =====
 const storage = require('./context/storage');
+const logger = require('./context/logger');
 
 // ===== Secure storage =====
 const keytar = require('keytar');
@@ -200,21 +201,31 @@ let updateInfo = null; // holds update info if available
 
 authApp.get('/callback', async (req, res) => {
   try {
-    console.log('[auth] callback hit, code len =', (req.query.code || '').length);
+    logger.log('auth', `callback hit, code len = ${(req.query.code || '').length}`);
     await exchangeCodeForToken(req.query.code);
-    console.log('[auth] access token set?', !!accessToken, 'expires in ~', Math.round((tokenExpiry - Date.now())/1000), 's');
+    logger.log('auth', `access token set? ${!!accessToken}, expires in ~ ${Math.round((tokenExpiry - Date.now())/1000)} s`);
+    
+    // Verify token works by making a test API call
+    try {
+      await callSpotify('GET', '/me');
+      logger.log('auth', 'token verified successfully');
+    } catch (verifyErr) {
+      logger.log('auth', `token verification failed (may be private session), but token saved: ${verifyErr.message}`);
+      // Don't fail - token might be valid but user is in private session or no device active
+    }
+    
     if (win) win.webContents.send('authed'); // push to renderer
     if (moreWin && !moreWin.isDestroyed()) moreWin.webContents.send('authed'); // push to more window
     if (queueWin && !queueWin.isDestroyed()) queueWin.webContents.send('authed'); // push to queue window
     if (settingsWin && !settingsWin.isDestroyed()) settingsWin.webContents.send('authed'); // push to settings window
     res.send('<script>window.close()</script><p>Logged in. You can close this window.</p>');
   } catch (e) {
-    console.error('[auth] exchange failed:', e);
+    logger.log('auth', `exchange failed: ${e.message}`);
     res.status(500).send('Auth failed: ' + e.message);
   }
 });
 
-authApp.listen(5173, () => console.log('[auth] listening on http://127.0.0.1:5173'));
+authApp.listen(5173, () => logger.log('startup', 'Auth server listening on http://127.0.0.1:5173'));
 
 // ===== IPC =====
 ipcMain.handle('login', async () => {
@@ -231,7 +242,18 @@ ipcMain.handle('isAuthed', async () => {
   return !!accessToken;
 });
 
-ipcMain.handle('getCurrent', async () => callSpotify('GET', '/me/player/currently-playing?market=from_token'));
+ipcMain.handle('getCurrent', async () => {
+  try {
+    if (!accessToken) {
+      logger.log('api', 'getCurrent called without authentication');
+      return null;
+    }
+    return await callSpotify('GET', '/me/player/currently-playing?market=from_token');
+  } catch (err) {
+    logger.log('api', `getCurrent failed: ${err.message}`);
+    throw err;
+  }
+});
 ipcMain.handle('playPause', async () => { try { await callSpotify('PUT','/me/player/pause'); } catch { await callSpotify('PUT','/me/player/play'); } });
 ipcMain.handle('next', async () => callSpotify('POST','/me/player/next'));
 ipcMain.handle('prev', async () => callSpotify('POST','/me/player/previous'));
@@ -251,24 +273,94 @@ ipcMain.handle('setVolume', async (_e, pct) => {
 });
 
 ipcMain.handle('getQueue', async () => {
-  const queue = await callSpotify('GET', '/me/player/queue');
-  return queue;
+  try {
+    const queue = await callSpotify('GET', '/me/player/queue');
+    if (!queue) {
+      console.warn('[queue] API returned null - possibly private session or no active device');
+      return { queue: [] };
+    }
+    return queue;
+  } catch (err) {
+    console.error('[queue] failed to fetch queue:', err.message);
+    // Return empty queue instead of throwing error
+    return { queue: [] };
+  }
+});
+
+ipcMain.handle('forceRefresh', async () => {
+  logger.log('refresh', 'forced refresh triggered');
+  // Broadcast refresh signal to all windows - they'll call getCurrent
+  if (win && !win.isDestroyed()) win.webContents.send('forceRefresh');
+  if (moreWin && !moreWin.isDestroyed()) moreWin.webContents.send('forceRefresh');
+  if (queueWin && !queueWin.isDestroyed()) queueWin.webContents.send('forceRefresh');
+  if (settingsWin && !settingsWin.isDestroyed()) settingsWin.webContents.send('forceRefresh');
+  return true;
+});
+
+ipcMain.handle('getDebugLogPath', async () => {
+  return logger.getLogFile();
+});
+
+ipcMain.handle('openDebugLog', async () => {
+  const logPath = logger.getLogFile();
+  await shell.openPath(logPath);
+  return logPath;
+});
+
+ipcMain.handle('rendererLog', async (_e, category, message) => {
+  logger.log(`renderer-${category}`, message);
+  return true;
+});
+
+ipcMain.handle('clearCache', async () => {
+  logger.log('cache', 'clearing all cached data and credentials');
+  try {
+    // Clear refresh token from keytar
+    await clearRefreshToken();
+    
+    // Clear in-memory tokens
+    accessToken = null;
+    refreshToken = null;
+    tokenExpiry = 0;
+    
+    // Reset app start time
+    storage.resetAppStartTime();
+    
+    logger.log('cache', 'cache cleared successfully');
+    return { success: true, message: 'Cache cleared. Please restart MiniBox.' };
+  } catch (err) {
+    logger.log('cache', `failed to clear cache: ${err.message}`);
+    return { success: false, message: `Failed to clear cache: ${err.message}` };
+  }
 });
 
 ipcMain.handle('logout', async () => {
+  logger.log('auth', 'logout initiated');
   await clearRefreshToken();
   accessToken = null; refreshToken = null; tokenExpiry = 0;
   
   // Close settings window on logout
   if (settingsWin && !settingsWin.isDestroyed()) {
-    settingsWin.close();
+    try {
+      settingsWin.close();
+    } catch (e) {}
     settingsWin = null;
   }
   
-  if (win) win.webContents.send('loggedOut');
-  if (moreWin && !moreWin.isDestroyed()) moreWin.webContents.send('loggedOut');
-  if (queueWin && !queueWin.isDestroyed()) queueWin.webContents.send('loggedOut');
-  if (settingsWin && !settingsWin.isDestroyed()) settingsWin.webContents.send('loggedOut');
+  // Broadcast logout to all windows
+  if (win) {
+    logger.log('auth', 'sending loggedOut to main window');
+    win.webContents.send('loggedOut');
+  }
+  if (moreWin && !moreWin.isDestroyed()) {
+    logger.log('auth', 'sending loggedOut to more window');
+    moreWin.webContents.send('loggedOut');
+  }
+  if (queueWin && !queueWin.isDestroyed()) {
+    logger.log('auth', 'sending loggedOut to queue window');
+    queueWin.webContents.send('loggedOut');
+  }
+  logger.log('auth', 'logout complete');
   return true;
 });
 
@@ -278,6 +370,13 @@ ipcMain.handle('openSpotifyAccount', async () => {
 });
 
 ipcMain.handle('closeApp', async () => {
+  app.quit();
+  return true;
+});
+
+ipcMain.handle('restartApp', async () => {
+  logger.log('restart', 'restarting app');
+  app.relaunch();
   app.quit();
   return true;
 });
@@ -360,15 +459,25 @@ function broadcastUpdateStatus() {
 
 async function tryRestore() {
   const stored = await loadRefreshToken();
-  if (!stored) { console.log('[auth] no stored refresh token found'); return false; }
-  console.log('[auth] found stored refresh token');
+  if (!stored) { logger.log('auth', 'no stored refresh token found'); return false; }
+  logger.log('auth', 'found stored refresh token');
   refreshToken = stored;
   try {
     await refresh();                           // sets accessToken + tokenExpiry (may rotate RT)
-    console.log('[auth] resumed session via stored refresh token');
+    logger.log('auth', 'resumed session via stored refresh token');
+    
+    // Verify token works
+    try {
+      await callSpotify('GET', '/me');
+      logger.log('auth', 'restored token verified successfully');
+    } catch (verifyErr) {
+      logger.log('auth', `token verification failed after restore (may be private session): ${verifyErr.message}`);
+      // Don't fail - token might be valid but user is in private session
+    }
+    
     return true;
   } catch (e) {
-    console.warn('[auth] stored refresh token failed:', e.message);
+    logger.log('auth', `stored refresh token failed: ${e.message}`);
     refreshToken = null;
     await clearRefreshToken();
     return false;
@@ -688,6 +797,9 @@ ipcMain.handle('toggleSettings', () => {
 });
 
 app.whenReady().then(async () => {
+  logger.log('startup', '========== MiniBox App Started ==========');
+  logger.log('startup', `Version: ${app.getVersion()}`);
+  
   // Set app icon for taskbar and system
   const iconPath = path.join(__dirname, 'assets/MiniBoxIcon2.ico');
   if (process.platform === 'win32') {

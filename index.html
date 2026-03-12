@@ -532,14 +532,17 @@
     let isQueueOpen = false;
     let isMoreOpen = false;
     let isVolPopOpen = false;
+    let wasInApparentPrivateSession = false; // Track private session state transitions
 
     function setControlsEnabled(on) {
       [btnPrev, btnPlay, btnNext, volBtn].forEach(b => b.disabled = !on);
+      window.api.rendererLog?.('ui', `Controls ${on ? 'enabled' : 'disabled'}`);
     }
     function setControlsVisible(visible) {
       [btnPrev, btnPlay, btnNext, volBtn].forEach(b => b.style.display = visible ? 'inline-block' : 'none');
       btnQueue.style.display = visible ? 'inline-block' : 'none';
       moreBtn.style.display = 'inline-block'; // Always show more button
+      window.api.rendererLog?.('ui', `Controls ${visible ? 'visible' : 'hidden'}`);
     }
     function setMenuOptionsVisible(visible) {
       accountBtn.style.display = visible ? 'block' : 'none';
@@ -659,9 +662,25 @@
     // ---------- Data refresh ----------
     async function refresh() {
       try {
+        // Check if still authenticated before making API calls
+        const isAuthed = await window.api.isAuthed();
+        if (!isAuthed) {
+          window.api.rendererLog?.('refresh', 'refresh called but not authenticated - stopping polling');
+          stopPolling();
+          return;
+        }
+
         const data = await window.api.getCurrent();
 
         if (!data || !data.item) {
+          // No track data - could be no playback OR private session
+          const isNowInPrivateSession = !wasInApparentPrivateSession; // currently returning nothing
+          if (wasInApparentPrivateSession === false && isNowInPrivateSession === true) {
+            // Just entered private session
+            window.api.rendererLog?.('privacy', 'Private session detected - no track data returned');
+          }
+          wasInApparentPrivateSession = true;
+
           titleEl.textContent  = 'No music playing on Spotify';
           artistEl.textContent = 'Play a track on any device';
           isPlaying = false; setPlayIcon();
@@ -669,6 +688,15 @@
           currentDuration = 0; currentProgress = 0; renderProgress();
           nextSongMsg.classList.remove('show');
           return;
+        }
+
+        // Got track data - we successfully exited private session (if we were in it)
+        if (wasInApparentPrivateSession === true) {
+          window.api.rendererLog?.('privacy', 'Private session disabled - track data now visible');
+          wasInApparentPrivateSession = false;
+          // Re-enable controls when exiting private session
+          setControlsEnabled(true);
+          window.api.rendererLog?.('ui', 'Controls re-enabled after exiting private session');
         }
 
         const t = data.item;
@@ -702,7 +730,7 @@
               nextSongMsg.classList.remove('show');
             }
           } catch (e) {
-            console.error('Failed to fetch queue:', e);
+            window.api.rendererLog?.('error', `Failed to fetch queue: ${e.message}`);
             nextSongMsg.classList.remove('show');
           }
         } else {
@@ -729,7 +757,12 @@
         const timeRemaining = currentDuration - currentProgress;
         if (timeRemaining <= 10000 && timeRemaining > 0) {
           if (!nextSongMsg.classList.contains('show')) {
-            refresh().catch(() => {});
+            refresh().catch((err) => {
+              // Log but don't spam - only if not an auth error
+              if (!err?.message?.includes('authenticated')) {
+                window.api.rendererLog?.('error', `refresh error: ${err?.message}`);
+              }
+            });
           }
         }
       }
@@ -749,17 +782,48 @@
       } catch (err) { console.error('seek failed', err); }
     });
 
-    function startPolling(){ if (!pollId) pollId = setInterval(refresh, 2000); }
-    function stopPolling(){ if (pollId){ clearInterval(pollId); pollId=null; } }
+    function startPolling()  {
+      if (!pollId) {
+        // Only start polling if authenticated
+        window.api.isAuthed().then(authed => {
+          if (authed) {
+            pollId = setInterval(() => {
+              refresh().catch((err) => {
+                // Only log non-auth errors to avoid spam
+                if (!err?.message?.includes('authenticated')) {
+                  window.api.rendererLog?.('error', `poll refresh error: ${err?.message}`);
+                }
+              });
+            }, 2000);
+            window.api.rendererLog?.('refresh', 'polling started');
+          }
+        }).catch(() => {
+          window.api.rendererLog?.('auth', 'cannot start polling - auth check failed');
+        });
+      }
+    }
+    function stopPolling(){
+      if (pollId) {
+        clearInterval(pollId);
+        window.api.rendererLog?.('refresh', 'polling stopped');
+        pollId = null;
+      }
+    }
 
     async function checkAuthAndInit() {
       const authed = await window.api.isAuthed();
+      window.api.rendererLog?.('auth', `checkAuthAndInit: authed=${authed}`);
       setControlsEnabled(authed);
       setControlsVisible(authed);
       setMenuOptionsVisible(authed);
       showLogin(!authed);
-      if (authed) { startPolling(); refresh(); }
-      else { 
+      if (authed) {
+        window.api.rendererLog?.('auth', 'Auth successful - starting polling and refresh');
+        startPolling();
+        refresh();
+      }
+      else {
+        window.api.rendererLog?.('auth', 'Not authenticated - stopping polling');
         stopPolling();
         // Clear UI when logged out
         titleEl.textContent = 'Disconnected';
@@ -775,24 +839,65 @@
     }
 
     btnLogin.onclick = async () => { await window.api.login(); setTimeout(checkAuthAndInit, 900); };
-    window.api.onAuthed(() => checkAuthAndInit());
-    window.api.onLoggedOut(() => checkAuthAndInit());
+    window.api.onAuthed(() => {
+      window.api.rendererLog?.('auth', 'Authenticated event received');
+      checkAuthAndInit();
+    });
+    window.api.onLoggedOut(() => {
+      window.api.rendererLog?.('auth', 'Logout event received - clearing UI immediately');
+      clearUIOnLogout(); // Immediately clear UI
+      setTimeout(checkAuthAndInit, 200); // Then verify state
+    });
 
     // Controls
-    btnPrev.onclick = () => window.api.prev().catch(console.error);
-    btnNext.onclick = () => window.api.next().catch(console.error);
+    btnPrev.onclick = () => {
+      window.api.rendererLog?.('control', 'Previous button clicked');
+      window.api.prev().catch(err => {
+        window.api.rendererLog?.('error', `Previous failed: ${err.message}`);
+      });
+    };
+    btnNext.onclick = () => {
+      window.api.rendererLog?.('control', 'Next button clicked');
+      window.api.next().catch(err => {
+        window.api.rendererLog?.('error', `Next failed: ${err.message}`);
+      });
+    };
     btnQueue.onclick = async () => {
       try {
+        window.api.rendererLog?.('control', 'Queue button clicked');
         await window.api.toggleQueue();
       } catch (err) {
-        console.error('toggleQueue failed', err);
+        window.api.rendererLog?.('error', `toggleQueue failed: ${err.message}`);
       }
     };
     btnPlay.onclick = async () => {
       isPlaying = !isPlaying; setPlayIcon();
+      window.api.rendererLog?.('control', `Play/Pause toggled: ${isPlaying ? 'playing' : 'paused'}`);
       try { await window.api.playPause(); setTimeout(refresh, 300); }
-      catch (e) { console.error(e); isPlaying = !isPlaying; setPlayIcon(); }
+      catch (e) {
+        window.api.rendererLog?.('error', `PlayPause failed: ${e.message}`);
+        isPlaying = !isPlaying; setPlayIcon();
+      }
     };
+
+    // Clear UI immediately on logout (before checkAuthAndInit runs)
+    function clearUIOnLogout() {
+      window.api.rendererLog?.('ui', 'Clearing UI on logout');
+      stopPolling();
+      titleEl.textContent = 'Disconnected';
+      artistEl.textContent = 'Connect to your Spotify';
+      if (art) art.style.backgroundImage = '';
+      isPlaying = false;
+      setPlayIcon();
+      currentDuration = 0;
+      currentProgress = 0;
+      renderProgress();
+      nextSongMsg.classList.remove('show');
+      setControlsEnabled(false);
+      setControlsVisible(false);
+      showLogin(true);
+      window.api.rendererLog?.('ui', 'UI cleared completely');
+    }
 
     // More menu handlers
     moreBtn.addEventListener('click', async (e) => {
@@ -846,6 +951,12 @@
 
     window.api.onMoreClosed(() => {
       isMoreOpen = false;
+    });
+
+    // Force refresh listener (for manual refresh or private session detection)
+    window.api.onForceRefresh?.(() => {
+      window.api.rendererLog?.('refresh', 'Force refresh signal received - calling refresh()');
+      refresh().catch(() => {});
     });
 
     setPlayIcon();

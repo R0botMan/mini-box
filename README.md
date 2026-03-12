@@ -55,8 +55,20 @@ These are the features of the app:
 
 **"No music playing"**
 - Make sure Spotify is running on another device or browser
+- Check if you have an active playback device selected in Spotify
 
-## License
+**"No music playing" after login or restart**
+- **Private Session**: If Spotify's Private Session is enabled, MiniBox cannot see the currently playing track (this is a Spotify API restriction). Disable Private Session in Spotify to use MiniBox
+- Restart MiniBox after disabling Private Session
+
+**MiniBox shows "Disconnected" after restart**
+- Close MiniBox completely and reopen it
+- Delete and re-authenticate if issues persist: Click "Sign Out" in settings, then log in again
+
+## Known Limitations
+
+- **Private Sessions**: MiniBox cannot display or control playback during Spotify Private Sessions. This is a Spotify API restriction — the API intentionally hides data from third-party apps when Private Session is enabled
+- **First-time login with Private Session**: If you log in to MiniBox while Private Session is enabled, you may need to disable it and restart the app to see tracks
 
 ISC
 

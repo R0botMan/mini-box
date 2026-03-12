@@ -127,20 +127,21 @@
 
     .settings-buttons {
       display: flex;
-      gap: 8px;
+      gap: 4px;
       margin-top: auto;
       -webkit-app-region: no-drag;
     }
 
     .settings-btn {
       flex: 1;
-      padding: 8px 12px;
+      padding: 6px 8px;
       background: var(--theme-button-bg);
       border: 1px solid var(--theme-border-color);
       border-radius: 4px;
       color: var(--theme-text-primary);
       font-size: 11px;
       font-family: 'Pixelify Sans', sans-serif;
+      font-weight: 500;
       cursor: pointer;
       transition: background 0.2s;
     }
@@ -247,7 +248,7 @@
       <div class="settings-item">
         <span class="settings-label">Update:</span>
         <div style="display: flex; gap: 4px; align-items: center;">
-          <button class="theme-btn" id="checkUpdatesBtn" style="padding: 2px 6px; font-size: 9px;">Check</button>
+          <button class="theme-btn" id="checkUpdatesBtn" style="padding: 2px 6px; font-size: 11px;">Check</button>
           <span class="runtime-display" id="updateStatus"></span>
         </div>
       </div>
@@ -260,6 +261,7 @@
 
     <div class="settings-buttons">
       <button class="settings-btn danger" id="signOutBtn">Sign Out</button>
+      <button class="settings-btn" id="clearCacheBtn">Clear Cache</button>
     </div>
   </div>
 
@@ -284,6 +286,7 @@
     const confirmMessage = document.getElementById('confirmMessage');
     const confirmYes = document.getElementById('confirmYes');
     const confirmNo = document.getElementById('confirmNo');
+    const clearCacheBtn = document.getElementById('clearCacheBtn');
 
     let confirmAction = null;
 
@@ -426,6 +429,29 @@
       });
     });
 
+    // Clear cache button
+    clearCacheBtn.addEventListener('click', () => {
+      showConfirm('Clear all stored credentials? You will need to log in again.', async () => {
+        try {
+          const result = await window.api.clearCache();
+          if (result.success) {
+            confirmMessage.textContent = result.message;
+            // Don't hide - let user see the message, then they can click OK
+            confirmYes.textContent = 'Restart Now';
+            confirmYes.onclick = () => {
+              window.api.restartApp();
+            };
+            confirmNo.style.display = 'none';
+          } else {
+            confirmMessage.textContent = result.message;
+          }
+        } catch (err) {
+          console.error('Clear cache failed', err);
+          confirmMessage.textContent = `Error: ${err.message}`;
+        }
+      });
+    });
+
     function showConfirm(message, action) {
       confirmMessage.textContent = message;
       confirmDialog.classList.add('show');
@@ -436,6 +462,10 @@
       confirmDialog.classList.remove('show');
       confirmMessage.textContent = '';
       confirmAction = null;
+      // Reset buttons
+      confirmYes.textContent = 'Confirm';
+      confirmYes.onclick = null;
+      confirmNo.style.display = 'block';
     }
 
     confirmYes.addEventListener('click', () => {

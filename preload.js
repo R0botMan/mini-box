@@ -20,6 +20,7 @@ contextBridge.exposeInMainWorld('api', {
   shrinkForOptions:(px) => ipcRenderer.invoke('shrinkAfterOptions', px),
   openSpotifyAccount: () => ipcRenderer.invoke('openSpotifyAccount'),
   closeApp: () => ipcRenderer.invoke('closeApp'),
+  restartApp: () => ipcRenderer.invoke('restartApp'),
   getQueue: () => ipcRenderer.invoke('getQueue'),
   toggleQueue: () => ipcRenderer.invoke('toggleQueue'),
   toggleMore: () => ipcRenderer.invoke('toggleMore'),
@@ -40,4 +41,10 @@ contextBridge.exposeInMainWorld('api', {
   getUpdateStatus: () => ipcRenderer.invoke('getUpdateStatus'),
   installUpdate: () => ipcRenderer.invoke('installUpdate'),
   onUpdateStatusChanged: (cb) => ipcRenderer.on('updateStatusChanged', cb),
+  forceRefresh: () => ipcRenderer.invoke('forceRefresh'),
+  onForceRefresh: (cb) => ipcRenderer.on('forceRefresh', cb),
+  getDebugLogPath: () => ipcRenderer.invoke('getDebugLogPath'),
+  openDebugLog: () => ipcRenderer.invoke('openDebugLog'),
+  rendererLog: (category, message) => ipcRenderer.invoke('rendererLog', category, message),
+  clearCache: () => ipcRenderer.invoke('clearCache'),
 });
