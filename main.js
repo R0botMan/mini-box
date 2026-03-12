@@ -830,6 +830,7 @@ app.whenReady().then(async () => {
     updateStatus = 'available';
     updateInfo = info;
     broadcastUpdateStatus();
+    logger.log('updater', `Update available: ${info.version} (from ${info.releaseDate})`);
     console.log('[updater] Update available:', info.version);
   });
   
@@ -837,6 +838,7 @@ app.whenReady().then(async () => {
     updateStatus = 'not-available';
     updateInfo = null;
     broadcastUpdateStatus();
+    logger.log('updater', 'No updates available');
     console.log('[updater] No updates available');
   });
   
@@ -844,12 +846,14 @@ app.whenReady().then(async () => {
     updateStatus = 'downloading';
     updateInfo = { ...updateInfo, downloadProgress: progress };
     broadcastUpdateStatus();
+    logger.log('updater', `Download progress: ${Math.round(progress.percent)}%`);
   });
   
   autoUpdater.on('update-downloaded', (info) => {
     updateStatus = 'ready';
     updateInfo = info;
     broadcastUpdateStatus();
+    logger.log('updater', `Update downloaded and ready to install: ${info.version}`);
     console.log('[updater] Update downloaded, ready to install');
   });
   
@@ -857,6 +861,10 @@ app.whenReady().then(async () => {
     updateStatus = 'error';
     updateInfo = null;
     broadcastUpdateStatus();
+    logger.log('updater', `Error: ${err.message || err}`);
+    if (err.stack) {
+      logger.log('updater', `Stack: ${err.stack}`);
+    }
     console.error('[updater] Error:', err.message || err);
   });
   
