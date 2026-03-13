@@ -47,4 +47,6 @@ contextBridge.exposeInMainWorld('api', {
   openDebugLog: () => ipcRenderer.invoke('openDebugLog'),
   rendererLog: (category, message) => ipcRenderer.invoke('rendererLog', category, message),
   clearCache: () => ipcRenderer.invoke('clearCache'),
+  closePatch: () => ipcRenderer.invoke('closePatch'),
+  openPatchWindow: () => ipcRenderer.invoke('openPatchWindow'),
 });

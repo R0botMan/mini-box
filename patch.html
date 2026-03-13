@@ -1,0 +1,391 @@
+<!doctype html>
+<html>
+<head>
+  <meta charset="utf-8" />
+  <title>What's New</title>
+  <link href="https://fonts.googleapis.com/css2?family=Pixelify+Sans&display=swap" rel="stylesheet">
+  <script src="./context/themeContext.js"></script>
+  <style>
+    :root {
+      --theme-background: rgba(12, 12, 12, 0.95);
+      --theme-text-primary: #fff;
+      --theme-border-color: rgba(255, 255, 255, 0.1);
+      --theme-button-bg: rgba(255, 255, 255, 0.05);
+      --theme-button-bg-hover: rgba(255, 255, 255, 0.1);
+      --theme-button-bg-active: rgba(255, 255, 255, 0.15);
+      --theme-border-color-hover: rgba(255, 255, 255, 0.15);
+      --theme-text-opacity: rgba(255, 255, 255, 0.7);
+      --theme-glitch-color-1: #3cfaff;
+    }
+
+    html, body {
+      margin: 0;
+      padding: 0;
+      background: transparent;
+      font-family: 'Pixelify Sans', sans-serif;
+      color: var(--theme-text-primary);
+      scrollbar-width: none;
+      -ms-overflow-style: none;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      width: 100%;
+      height: 100%;
+    }
+
+    html::-webkit-scrollbar,
+    body::-webkit-scrollbar {
+      display: none;
+    }
+
+    .patch-container {
+      width: 420px;
+      max-height: 600px;
+      background: var(--theme-background);
+      backdrop-filter: blur(6px);
+      border-radius: 12px;
+      border: 1px solid var(--theme-border-color);
+      padding: 0;
+      display: flex;
+      flex-direction: column;
+      gap: 0;
+      overflow: hidden;
+    }
+
+    .patch-container::-webkit-scrollbar {
+      width: 6px;
+    }
+
+    .patch-container::-webkit-scrollbar-track {
+      background: transparent;
+    }
+
+    .patch-container::-webkit-scrollbar-thumb {
+      background: var(--theme-border-color);
+      border-radius: 3px;
+    }
+
+    .patch-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: flex-start;
+      gap: 8px;
+      border-bottom: 1px solid var(--theme-border-color);
+      padding: 24px 24px 16px 24px;
+      -webkit-app-region: drag;
+      position: sticky;
+      top: 0;
+      z-index: 10;
+      background: var(--theme-background);
+      backdrop-filter: blur(6px);
+      flex-shrink: 0;
+    }
+
+    .patch-header-content {
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+      flex: 1;
+    }
+
+    .patch-close-btn {
+      -webkit-app-region: no-drag;
+      flex-shrink: 0;
+      background: transparent;
+      border: none;
+      color: var(--theme-text-opacity);
+      font-size: 20px;
+      cursor: pointer;
+      padding: 0;
+      width: 24px;
+      height: 24px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      transition: color 0.2s;
+    }
+
+    .patch-close-btn:hover {
+      color: var(--theme-text-primary);
+    }
+
+    .patch-title {
+      font-size: 20px;
+      font-weight: bold;
+      color: var(--theme-text-primary);
+    }
+
+    .patch-version {
+      font-size: 14px;
+      color: var(--theme-text-opacity);
+    }
+
+    .patch-content {
+      display: flex;
+      flex-direction: column;
+      gap: 12px;
+      font-size: 14px;
+      line-height: 1.6;
+      color: var(--theme-text-primary);
+      padding: 16px 24px;
+      overflow-y: auto;
+      scrollbar-width: thin;
+      scrollbar-color: var(--theme-border-color) transparent;
+    }
+
+    .patch-content::-webkit-scrollbar {
+      width: 6px;
+    }
+
+    .patch-content::-webkit-scrollbar-track {
+      background: transparent;
+    }
+
+    .patch-content::-webkit-scrollbar-thumb {
+      background: var(--theme-border-color);
+      border-radius: 3px;
+    }
+
+    .patch-section {
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+    }
+
+    .patch-section-title {
+      font-weight: bold;
+      color: var(--theme-text-primary);
+      margin-top: 8px;
+    }
+
+    .patch-item {
+      display: flex;
+      gap: 8px;
+      align-items: flex-start;
+      padding: 4px 0;
+    }
+
+    .patch-item-bullet {
+      color: var(--theme-glitch-color-1);
+      min-width: 12px;
+      margin-top: 2px;
+    }
+
+    .patch-item-text {
+      flex: 1;
+      color: var(--theme-text-primary);
+    }
+
+    .patch-footer {
+      display: flex;
+      gap: 8px;
+      margin-top: 0;
+      padding: 16px 24px 24px 24px;
+      border-top: 1px solid var(--theme-border-color);
+      flex-shrink: 0;
+    }
+
+    .patch-btn {
+      flex: 1;
+      padding: 8px 12px;
+      background: var(--theme-button-bg);
+      border: 1px solid var(--theme-border-color);
+      border-radius: 6px;
+      color: var(--theme-text-primary);
+      font-size: 12px;
+      font-family: 'Pixelify Sans', sans-serif;
+      font-weight: 500;
+      cursor: pointer;
+      transition: all 0.2s;
+    }
+
+    .patch-btn:hover {
+      background: var(--theme-button-bg-hover);
+      border-color: var(--theme-border-color-hover);
+    }
+
+    .patch-btn:active {
+      background: var(--theme-button-bg-active);
+    }
+
+    .patch-btn.primary {
+      background: rgba(60, 250, 255, 0.15);
+      border-color: rgba(60, 250, 255, 0.3);
+    }
+
+    .patch-btn.primary:hover {
+      background: rgba(60, 250, 255, 0.25);
+      border-color: rgba(60, 250, 255, 0.4);
+    }
+  </style>
+</head>
+<body>
+  <div class="patch-container">
+    <div class="patch-header">
+      <div class="patch-header-content">
+        <div class="patch-title">What's New</div>
+        <div class="patch-version" id="patchVersion">Version 1.1.5</div>
+      </div>
+      <button class="patch-close-btn" id="headerCloseBtn" title="Close">✕</button>
+    </div>
+
+    <div class="patch-content" id="patchContent">
+      <!-- Patch notes will be injected here -->
+    </div>
+
+    <div class="patch-footer">
+      <button class="patch-btn" id="closePatchBtn">Got It</button>
+    </div>
+  </div>
+
+  <script>
+    const patchVersionElement = document.getElementById('patchVersion');
+    const patchContentElement = document.getElementById('patchContent');
+    const closePatchBtn = document.getElementById('closePatchBtn');
+
+    // Load and apply current theme
+    function loadTheme() {
+      if (window.api && window.api.getTheme) {
+        window.api.getTheme().then(theme => {
+          if (window.applyTheme) {
+            window.applyTheme(theme);
+          }
+        }).catch(err => console.error('Failed to load theme:', err));
+      }
+    }
+
+    // Listen for theme changes
+    if (window.api && window.api.onThemeChanged) {
+      window.api.onThemeChanged((_e, theme) => {
+        if (window.applyTheme) {
+          window.applyTheme(theme);
+        }
+      });
+    }
+
+    // Apply theme on load
+    loadTheme();
+
+    // Fetch release notes from GitHub
+    async function fetchPatchNotes(version) {
+      try {
+        const tag = `v${version}`;
+        const response = await fetch(`https://api.github.com/repos/R0botMan/mini-box/releases/tags/${tag}`);
+        
+        if (!response.ok) {
+          throw new Error(`Failed to fetch release: ${response.status}`);
+        }
+
+        const release = await response.json();
+        return {
+          version: release.tag_name,
+          name: release.name,
+          body: release.body,
+          published_at: release.published_at
+        };
+      } catch (error) {
+        console.error('[patch] Failed to fetch from GitHub:', error.message);
+        return null;
+      }
+    }
+
+    // Parse markdown-style release notes into HTML
+    function parseReleaseNotes(markdownText) {
+      if (!markdownText) return '';
+
+      const lines = markdownText.split('\n');
+      const html = [];
+      let currentSection = null;
+
+      for (const line of lines) {
+        const trimmed = line.trim();
+
+        // Skip empty lines
+        if (!trimmed) {
+          if (currentSection && html[html.length - 1] !== '') {
+            html.push('');
+          }
+          continue;
+        }
+
+        // Check for section headers (## format)
+        if (trimmed.startsWith('##')) {
+          currentSection = trimmed.replace(/^#+\s*/g, '').trim();
+          html.push(`<div class="patch-section"><div class="patch-section-title">${currentSection}</div>`);
+          continue;
+        }
+
+        // Check for bullet points
+        if (trimmed.startsWith('-') || trimmed.startsWith('*')) {
+          const text = trimmed.substring(1).trim();
+          html.push(`<div class="patch-item"><div class="patch-item-bullet">•</div><div class="patch-item-text">${escapeHtml(text)}</div></div>`);
+          continue;
+        }
+
+        // Regular text
+        if (trimmed && !line.startsWith(' ')) {
+          html.push(`<div style="margin: 8px 0; line-height: 1.5;">${escapeHtml(trimmed)}</div>`);
+        }
+      }
+
+      // Close any open section
+      if (currentSection) {
+        html.push('</div>');
+      }
+
+      return html.join('');
+    }
+
+    // Escape HTML special characters
+    function escapeHtml(text) {
+      const map = {
+        '&': '&amp;',
+        '<': '&lt;',
+        '>': '&gt;',
+        '"': '&quot;',
+        "'": '&#039;'
+      };
+      return text.replace(/[&<>"']/g, m => map[m]);
+    }
+
+    // Get current version from API and load patch notes
+    if (window.api && window.api.getVersion) {
+      window.api.getVersion().then(async (version) => {
+        const fullVersion = `v${version}`;
+        patchVersionElement.textContent = fullVersion;
+
+        // Fetch notes from GitHub
+        const notes = await fetchPatchNotes(version);
+        
+        if (notes) {
+          const html = parseReleaseNotes(notes.body);
+          if (html) {
+            patchContentElement.innerHTML = html;
+          } else {
+            patchContentElement.innerHTML = '<div style="color: var(--theme-text-opacity); text-align: center; padding: 20px;">No release notes available for this version.</div>';
+          }
+        } else {
+          patchContentElement.innerHTML = '<div style="color: var(--theme-text-opacity); text-align: center; padding: 20px;">Unable to fetch release notes from GitHub.</div>';
+        }
+      }).catch(err => {
+        console.error('[patch] Error loading version:', err);
+        patchContentElement.innerHTML = '<div style="color: var(--theme-text-opacity); text-align: center; padding: 20px;">Error loading patch notes.</div>';
+      });
+    }
+
+    closePatchBtn.addEventListener('click', async () => {
+      if (window.api && window.api.closePatch) {
+        await window.api.closePatch();
+      }
+    });
+
+    // Close button in header
+    const headerCloseBtn = document.getElementById('headerCloseBtn');
+    headerCloseBtn.addEventListener('click', async () => {
+      if (window.api && window.api.closePatch) {
+        await window.api.closePatch();
+      }
+    });
+  </script>
+</body>
+</html>

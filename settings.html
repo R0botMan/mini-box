@@ -257,6 +257,11 @@
         <span class="settings-label">Build:</span>
         <span class="runtime-display" id="buildInfo">Electron -</span>
       </div>
+
+      <div class="settings-item">
+        <span class="settings-label">Patch Notes:</span>
+        <button class="theme-btn" id="viewPatchBtn" style="padding: 2px 6px; font-size: 11px;">View</button>
+      </div>
     </div>
 
     <div class="settings-buttons">
@@ -287,6 +292,7 @@
     const confirmYes = document.getElementById('confirmYes');
     const confirmNo = document.getElementById('confirmNo');
     const clearCacheBtn = document.getElementById('clearCacheBtn');
+    const viewPatchBtn = document.getElementById('viewPatchBtn');
 
     let confirmAction = null;
 
@@ -329,15 +335,14 @@
 
     // Check for updates
     checkUpdatesBtn.addEventListener('click', async () => {
-      checkUpdatesBtn.disabled = true;
+      checkUpdatesBtn.style.display = 'none';
       updateStatusDisplay.textContent = 'Checking...';
       try {
         await window.api.checkForUpdates();
       } catch (err) {
         updateStatusDisplay.textContent = 'Error';
+        checkUpdatesBtn.style.display = '';
         console.error('Failed to check for updates:', err);
-      } finally {
-        checkUpdatesBtn.disabled = false;
       }
     });
 
@@ -346,41 +351,43 @@
       window.api.onUpdateStatusChanged((_e, { status, info }) => {
         if (status === 'checking') {
           updateStatusDisplay.textContent = 'Checking...';
-          checkUpdatesBtn.disabled = true;
+          checkUpdatesBtn.style.display = 'none';
         } else if (status === 'available') {
-          updateStatusDisplay.textContent = `v${info.version} available`;
-          checkUpdatesBtn.textContent = 'Downloading...';
-          checkUpdatesBtn.disabled = true;
+          updateStatusDisplay.textContent = `Downloading...`;
+          checkUpdatesBtn.style.display = 'none';
         } else if (status === 'downloading') {
           const progress = info.downloadProgress;
           const percent = Math.round(progress.percent);
           updateStatusDisplay.textContent = `${percent}%`;
+          checkUpdatesBtn.style.display = 'none';
         } else if (status === 'ready') {
-          updateStatusDisplay.textContent = 'Ready to install';
+          updateStatusDisplay.textContent = '';
           checkUpdatesBtn.textContent = 'Restart & Install';
+          checkUpdatesBtn.style.display = '';
           checkUpdatesBtn.disabled = false;
           checkUpdatesBtn.onclick = async () => {
             await window.api.installUpdate();
           };
         } else if (status === 'not-available') {
-          updateStatusDisplay.textContent = 'Up to date';
+          updateStatusDisplay.textContent = '';
           checkUpdatesBtn.textContent = 'Check';
+          checkUpdatesBtn.style.display = '';
           checkUpdatesBtn.disabled = false;
           checkUpdatesBtn.onclick = async () => {
-            checkUpdatesBtn.disabled = true;
+            checkUpdatesBtn.style.display = 'none';
             updateStatusDisplay.textContent = 'Checking...';
             try {
               await window.api.checkForUpdates();
             } catch (err) {
               updateStatusDisplay.textContent = 'Error checking updates';
+              checkUpdatesBtn.style.display = '';
               console.error('Failed to check for updates:', err);
-            } finally {
-              checkUpdatesBtn.disabled = false;
             }
           };
         } else if (status === 'error') {
           updateStatusDisplay.textContent = 'Error';
           checkUpdatesBtn.textContent = 'Check';
+          checkUpdatesBtn.style.display = '';
           checkUpdatesBtn.disabled = false;
         }
       });
@@ -390,11 +397,20 @@
     if (window.api && window.api.getUpdateStatus) {
       window.api.getUpdateStatus().then(({ status, info }) => {
         if (status === 'available') {
-          updateStatusDisplay.textContent = `v${info.version} available`;
-          checkUpdatesBtn.textContent = 'Download';
+          updateStatusDisplay.textContent = `Downloading...`;
+          checkUpdatesBtn.style.display = 'none';
+        } else if (status === 'downloading') {
+          const progress = info.downloadProgress;
+          const percent = Math.round(progress.percent);
+          updateStatusDisplay.textContent = `${percent}%`;
+          checkUpdatesBtn.style.display = 'none';
         } else if (status === 'ready') {
-          updateStatusDisplay.textContent = 'Ready to install';
+          updateStatusDisplay.textContent = '';
           checkUpdatesBtn.textContent = 'Restart & Install';
+          checkUpdatesBtn.style.display = '';
+          checkUpdatesBtn.onclick = async () => {
+            await window.api.installUpdate();
+          };
         }
       });
     }
@@ -450,6 +466,15 @@
           confirmMessage.textContent = `Error: ${err.message}`;
         }
       });
+    });
+
+    // View patch notes button
+    viewPatchBtn.addEventListener('click', async () => {
+      try {
+        await window.api.openPatchWindow();
+      } catch (err) {
+        console.error('Failed to open patch window:', err);
+      }
     });
 
     function showConfirm(message, action) {

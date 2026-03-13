@@ -192,6 +192,7 @@ let win; // forward-declared so we can notify renderer
 let queueWin; // queue window
 let moreWin; // more menu window
 let settingsWin; // settings window
+let patchWin; // patch notes window
 
 // App state
 let appStartTime = Date.now(); // always start fresh for this session
@@ -797,6 +798,84 @@ ipcMain.handle('toggleSettings', () => {
   return !settingsWin;
 });
 
+// ===== Patch Notes Window =====
+function createPatchWindow() {
+  if (patchWin) {
+    patchWin.focus();
+    return;
+  }
+
+  patchWin = new BrowserWindow({
+    width: 480,
+    height: 650,
+    frame: false,
+    transparent: true,
+    backgroundColor: '#00000000',
+    resizable: false,
+    alwaysOnTop: true,
+    show: false,
+    webPreferences: {
+      preload: path.join(__dirname, 'preload.js'),
+      nodeIntegration: false,
+      contextIsolation: true,
+      enableRemoteModule: false,
+      sandbox: true,
+    }
+  });
+
+  patchWin.loadFile('patch.html');
+
+  // Center patch window relative to main window
+  const [x, y] = win.getPosition();
+  const [winWidth, winHeight] = win.getSize();
+  const patchWidth = 1280;
+  const patchHeight = 1130;
+  const centeredX = x + (winWidth - patchWidth) / 2;
+  const centeredY = y + (winHeight - patchHeight) / 2;
+  patchWin.setPosition(Math.round(centeredX), Math.round(centeredY));
+
+  // Make patch window follow main window
+  const moveHandler = () => {
+    try {
+      if (patchWin && !patchWin.isDestroyed()) {
+        const [newX, newY] = win.getPosition();
+        const centeredX = newX + (winWidth - patchWidth) / 2;
+        const centeredY = newY + (winHeight - patchHeight) / 2;
+        patchWin.setPosition(Math.round(centeredX), Math.round(centeredY));
+      }
+    } catch (e) {}
+  };
+  win.on('move', moveHandler);
+
+  patchWin.once('ready-to-show', () => {
+    patchWin.show();
+  });
+
+  patchWin.on('closed', () => {
+    try {
+      if (win && !win.isDestroyed()) {
+        win.removeListener('move', moveHandler);
+      }
+    } catch (e) {}
+    patchWin = null;
+  });
+}
+
+ipcMain.handle('closePatch', () => {
+  if (patchWin && !patchWin.isDestroyed()) {
+    try {
+      patchWin.close();
+    } catch (e) {}
+    patchWin = null;
+  }
+  return true;
+});
+
+ipcMain.handle('openPatchWindow', () => {
+  createPatchWindow();
+  return true;
+});
+
 app.whenReady().then(async () => {
   logger.log('startup', '========== MiniBox App Started ==========');
   logger.log('startup', `Version: ${app.getVersion()}`);
@@ -887,6 +966,21 @@ app.whenReady().then(async () => {
   const restored = await tryRestore();
 
   createWindow();
+
+  // Check if app was updated and show patch notes
+  const currentVersion = app.getVersion();
+  const lastSeenVersion = storage.getLastSeenVersion();
+  
+  if (lastSeenVersion && lastSeenVersion !== currentVersion) {
+    logger.log('startup', `App updated from ${lastSeenVersion} to ${currentVersion}`);
+    // Delay showing patch window to ensure main window is ready
+    setTimeout(() => {
+      createPatchWindow();
+    }, 1000);
+  }
+  
+  // Always update the last seen version
+  storage.setLastSeenVersion(currentVersion);
 
   // if we were already authed by restore, tell the renderer once it loads
   if (restored || accessToken) {

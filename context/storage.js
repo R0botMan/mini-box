@@ -14,6 +14,10 @@ module.exports = {
   getTheme: () => store.get('theme'),
   setTheme: (theme) => store.set('theme', theme),
 
+  // Version management (for patch notes)
+  getLastSeenVersion: () => store.get('lastSeenVersion'),
+  setLastSeenVersion: (version) => store.set('lastSeenVersion', version),
+
   // Runtime management
   getAppStartTime: () => store.get('appStartTime'),
   getTotalRuntime: () => store.get('totalRuntime'),
