@@ -63,7 +63,19 @@ These are the features of the app:
 
 **MiniBox shows "Disconnected" after restart**
 - Close MiniBox completely and reopen it
-- Delete and re-authenticate if issues persist: Click "Sign Out" in settings, then log in again
+- Use Settings → **"Clear Cache"** to reset credentials if having persistent issues
+- Then log in again
+
+**For detailed debugging:**
+- See [DEBUG_LOGGING.md](DEBUG_LOGGING.md) for logs location and troubleshooting
+- Check `%TEMP%\minibox-debug.log` for error details
+
+## Version History
+
+- **v1.1.5** - Private session detection, cache clearing, debug logging
+- **v1.1.0** - Initial release with core features
+
+See [PATCH_NOTES.md](PATCH_NOTES.md) for detailed release notes.
 
 ## Known Limitations
 

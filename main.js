@@ -225,7 +225,8 @@ authApp.get('/callback', async (req, res) => {
   }
 });
 
-authApp.listen(5173, () => logger.log('startup', 'Auth server listening on http://127.0.0.1:5173'));
+// Don't start server here - it will start when app is ready
+let authServer = null;
 
 // ===== IPC =====
 ipcMain.handle('login', async () => {
@@ -800,6 +801,15 @@ app.whenReady().then(async () => {
   logger.log('startup', '========== MiniBox App Started ==========');
   logger.log('startup', `Version: ${app.getVersion()}`);
   
+  // Start auth server for Spotify OAuth redirects
+  try {
+    authServer = authApp.listen(5173, () => {
+      logger.log('startup', 'Auth server listening on http://127.0.0.1:5173');
+    });
+  } catch (err) {
+    logger.log('error', `Failed to start auth server: ${err.message}`);
+  }
+  
   // Set app icon for taskbar and system
   const iconPath = path.join(__dirname, 'assets/MiniBoxIcon2.ico');
   if (process.platform === 'win32') {
@@ -888,6 +898,12 @@ app.whenReady().then(async () => {
   app.on('before-quit', () => {
     // Save accumulated runtime before closing
     storage.saveTotalRuntime(appStartTime);
+    
+    // Close auth server
+    if (authServer) {
+      authServer.close();
+      logger.log('shutdown', 'Auth server closed');
+    }
     
     // Close all windows before quitting
     if (queueWin && !queueWin.isDestroyed()) {

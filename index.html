@@ -794,8 +794,8 @@
                   window.api.rendererLog?.('error', `poll refresh error: ${err?.message}`);
                 }
               });
-            }, 2000);
-            window.api.rendererLog?.('refresh', 'polling started');
+            }, 800);
+            window.api.rendererLog?.('refresh', 'polling started (800ms interval)');
           }
         }).catch(() => {
           window.api.rendererLog?.('auth', 'cannot start polling - auth check failed');
