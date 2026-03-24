@@ -79,4 +79,6 @@ contextBridge.exposeInMainWorld('api', {
   closePatch: () => ipcRenderer.invoke('closePatch'),
   openPatchWindow: () => ipcRenderer.invoke('openPatchWindow'),
   setPatchWindowLayout: (layout) => ipcRenderer.invoke('setPatchWindowLayout', layout),
+  setPatchWindowGithubFailureLayout: () => ipcRenderer.invoke('setPatchWindowGithubFailureLayout'),
+  setPatchWindowNotesAvailableLayout: () => ipcRenderer.invoke('setPatchWindowNotesAvailableLayout'),
 });

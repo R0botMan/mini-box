@@ -9,10 +9,28 @@ module.exports = function registerPatchWindow({
 }) {
   let patchLayout = {
     width: 480,
-    height: 600,
+    height: 250,
     patchWidth: 1280,
     patchHeight: 1080,
   };
+
+  function getPatchWindowGithubFailureLayout() {
+    return {
+      width: 480,
+      height: 260,
+      patchWidth: 1280,
+      patchHeight: 400,
+    };
+  }
+
+  function getPatchWindowNotesAvailableLayout() {
+    return {
+      width: 480,
+      height: 600,
+      patchWidth: 1280,
+      patchHeight: 880,
+    };
+  }
 
   function applyPatchWindowLayout(nextLayout = {}) {
     const patchWin = getPatchWindow();
@@ -33,6 +51,14 @@ module.exports = function registerPatchWindow({
     const centeredX = x + (winWidth - patchLayout.patchWidth) / 2;
     const centeredY = y + (winHeight - patchLayout.patchHeight) / 2;
     patchWin.setPosition(Math.round(centeredX), Math.round(centeredY));
+  }
+
+  function applyPatchWindowGithubFailureLayout() {
+    applyPatchWindowLayout(getPatchWindowGithubFailureLayout());
+  }
+
+  function applyPatchWindowNotesAvailableLayout() {
+    applyPatchWindowLayout(getPatchWindowNotesAvailableLayout());
   }
 
   function closePatchWindow() {
@@ -111,6 +137,16 @@ module.exports = function registerPatchWindow({
 
   ipcMain.handle('setPatchWindowLayout', (_event, layout) => {
     applyPatchWindowLayout(layout);
+    return true;
+  });
+
+  ipcMain.handle('setPatchWindowGithubFailureLayout', () => {
+    applyPatchWindowGithubFailureLayout();
+    return true;
+  });
+
+  ipcMain.handle('setPatchWindowNotesAvailableLayout', () => {
+    applyPatchWindowNotesAvailableLayout();
     return true;
   });
 

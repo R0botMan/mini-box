@@ -40,7 +40,7 @@
 
     .patch-container {
       width: 420px;
-      max-height: 600px;
+      max-height: 400px;
       background: var(--theme-background);
       backdrop-filter: blur(6px);
       border-radius: 12px;
@@ -303,14 +303,29 @@
       }
     }
 
+    async function setPatchWindowGithubFailureLayout() {
+      if (window.api && window.api.setPatchWindowGithubFailureLayout) {
+        try {
+          await window.api.setPatchWindowGithubFailureLayout();
+        } catch (error) {
+          console.error('[patch] Failed to apply GitHub failure patch layout:', error);
+        }
+      }
+    }
+
+    async function setPatchWindowNotesAvailableLayout() {
+      if (window.api && window.api.setPatchWindowNotesAvailableLayout) {
+        try {
+          await window.api.setPatchWindowNotesAvailableLayout();
+        } catch (error) {
+          console.error('[patch] Failed to apply notes-available patch layout:', error);
+        }
+      }
+    }
+
     async function renderGithubFetchFailure() {
       patchContentElement.innerHTML = `<div style="color: var(--theme-text-opacity); text-align: center; padding: 20px;">${githubFetchFailureMessage}</div>`;
-      await setPatchWindowLayout({
-        width: 480,
-        height: 260,
-        patchWidth: 1280,
-        patchHeight: 400,
-      });
+      await setPatchWindowGithubFailureLayout();
     }
 
     // Fetch release notes from GitHub
@@ -345,6 +360,7 @@
 
       const html = parseReleaseNotes(fallbackNotes);
       patchContentElement.innerHTML = html || '<div style="color: var(--theme-text-opacity); text-align: center; padding: 20px;">No release notes available for this version.</div>';
+      await setPatchWindowNotesAvailableLayout();
       return true;
     }
 
@@ -420,6 +436,7 @@
           const html = parseReleaseNotes(notes.body);
           if (html) {
             patchContentElement.innerHTML = html;
+            await setPatchWindowNotesAvailableLayout();
           } else {
             const renderedFallback = await renderFallbackPatchNotes(version);
             if (!renderedFallback) {
