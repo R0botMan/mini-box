@@ -67,23 +67,22 @@ These are the features of the app:
 - Then log in again
 
 **For detailed debugging:**
-- See [DEBUG_LOGGING.md](DEBUG_LOGGING.md) for logs location and troubleshooting
 - Check `%TEMP%\minibox-debug.log` for error details
 
 ## Version History
 
+- **v1.1.6** - Patch notes window
 - **v1.1.5** - Private session detection, cache clearing, debug logging
-- **v1.1.0** - Initial release with core features
-
-See [PATCH_NOTES.md](PATCH_NOTES.md) for detailed release notes.
+- **v1.1.0** - Settings, Queue, Next-song message 
+- **v1.0.0** - Initial release with core features
 
 ## Known Limitations
 
 - **Private Sessions**: MiniBox cannot display or control playback during Spotify Private Sessions. This is a Spotify API restriction — the API intentionally hides data from third-party apps when Private Session is enabled
 - **First-time login with Private Session**: If you log in to MiniBox while Private Session is enabled, you may need to disable it and restart the app to see tracks
 
+## License
 ISC
-
 ---
 
 Made with ❤️ for Spotify lovers
