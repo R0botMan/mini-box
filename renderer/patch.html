@@ -4,7 +4,7 @@
   <meta charset="utf-8" />
   <title>What's New</title>
   <link href="https://fonts.googleapis.com/css2?family=Pixelify+Sans&display=swap" rel="stylesheet">
-  <script src="./context/themeContext.js"></script>
+  <script src="../context/themeContext.js"></script>
   <style>
     :root {
       --theme-background: rgba(12, 12, 12, 0.95);
@@ -242,6 +242,33 @@
     const patchVersionElement = document.getElementById('patchVersion');
     const patchContentElement = document.getElementById('patchContent');
     const closePatchBtn = document.getElementById('closePatchBtn');
+    const githubFetchFailureMessage = 'Unable to fetch release notes from GitHub.';
+    const fallbackPatchNotesByVersion = {
+      '1.1.7': `Hello, this new version brings a few neat features for users that don't have Spotify. It turns the app into a more generalized playbox rather than just a Spotify control playback.
+
+## Added
+- Local audio mode with support for imported files and folders.
+- Local queue playback so imported tracks can be browsed and played inside MiniBox.
+- Source switching in Settings to move between Spotify and Local playback.
+- Local audio metadata support for track title, artist, duration, and embedded artwork.
+- New local import management UI for adding, selecting, and removing audio sources.
+
+## Changed
+- Refactored the app structure into dedicated \`main/\` and \`renderer/\` modules.
+- Updated the build packaging paths to ship the new app structure correctly.
+- Expanded settings and utility windows to support the new local playback flow.
+- Improved the patch notes window so it can display local notes when a GitHub release body is not available yet.
+
+## Fixed
+- Hardened Spotify login with persisted PKCE session state and stale callback protection.
+- Improved refresh-token recovery so invalid Spotify sessions are cleared more safely.
+- Synced theme, update status, auth state, and playback state more consistently across all windows.
+- Added normalization and validation for stored local sources and pending auth data.
+
+## Notes
+- Spotify playback remains available.
+- Local playback is the first provider step toward broader multi-source MiniBox support.`
+    };
 
     // Load and apply current theme
     function loadTheme() {
@@ -266,6 +293,26 @@
     // Apply theme on load
     loadTheme();
 
+    async function setPatchWindowLayout(layout) {
+      if (window.api && window.api.setPatchWindowLayout) {
+        try {
+          await window.api.setPatchWindowLayout(layout);
+        } catch (error) {
+          console.error('[patch] Failed to update patch window layout:', error);
+        }
+      }
+    }
+
+    async function renderGithubFetchFailure() {
+      patchContentElement.innerHTML = `<div style="color: var(--theme-text-opacity); text-align: center; padding: 20px;">${githubFetchFailureMessage}</div>`;
+      await setPatchWindowLayout({
+        width: 480,
+        height: 260,
+        patchWidth: 1280,
+        patchHeight: 400,
+      });
+    }
+
     // Fetch release notes from GitHub
     async function fetchPatchNotes(version) {
       try {
@@ -287,6 +334,18 @@
         console.error('[patch] Failed to fetch from GitHub:', error.message);
         return null;
       }
+    }
+
+    async function renderFallbackPatchNotes(version) {
+      const fallbackNotes = fallbackPatchNotesByVersion[version];
+      if (!fallbackNotes) {
+        await renderGithubFetchFailure();
+        return false;
+      }
+
+      const html = parseReleaseNotes(fallbackNotes);
+      patchContentElement.innerHTML = html || '<div style="color: var(--theme-text-opacity); text-align: center; padding: 20px;">No release notes available for this version.</div>';
+      return true;
     }
 
     // Parse markdown-style release notes into HTML
@@ -362,10 +421,13 @@
           if (html) {
             patchContentElement.innerHTML = html;
           } else {
-            patchContentElement.innerHTML = '<div style="color: var(--theme-text-opacity); text-align: center; padding: 20px;">No release notes available for this version.</div>';
+            const renderedFallback = await renderFallbackPatchNotes(version);
+            if (!renderedFallback) {
+              patchContentElement.innerHTML = '<div style="color: var(--theme-text-opacity); text-align: center; padding: 20px;">No release notes available for this version.</div>';
+            }
           }
         } else {
-          patchContentElement.innerHTML = '<div style="color: var(--theme-text-opacity); text-align: center; padding: 20px;">Unable to fetch release notes from GitHub.</div>';
+          await renderFallbackPatchNotes(version);
         }
       }).catch(err => {
         console.error('[patch] Error loading version:', err);

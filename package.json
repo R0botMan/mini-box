@@ -1,9 +1,9 @@
 {
   "name": "mini-box",
-  "version": "1.1.6",
+  "version": "1.1.7",
   "description": "Launch MiniBox",
   "author": "RobotMan",
-  "main": "main.js",
+  "main": "main/main.js",
   "scripts": {
     "start": "electronmon .",
     "build": "electron-builder",
@@ -15,13 +15,9 @@
     "appId": "com.minibox.spotify",
     "productName": "MiniBox",
     "files": [
-      "main.js",
-      "preload.js",
-      "index.html",
-      "queue.html",
-      "more.html",
-      "settings.html",
-      "patch.html",
+      ".env",
+      "main/**",
+      "renderer/**",
       "assets/**",
       "context/**"
     ],
@@ -64,10 +60,12 @@
     "rcedit": "^5.0.2"
   },
   "dependencies": {
-    "electron-store": "^8.7.0",
+    "dotenv": "^16.6.1",
+    "electron-store": "^11.0.2",
     "electron-updater": "^6.8.3",
     "express": "^5.1.0",
     "keytar": "^7.9.0",
+    "music-metadata": "^11.12.3",
     "node-fetch": "^3.3.2",
     "open": "^10.2.0"
   }

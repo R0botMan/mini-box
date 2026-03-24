@@ -4,7 +4,7 @@
   <meta charset="utf-8" />
   <title>More</title>
   <link href="https://fonts.googleapis.com/css2?family=Pixelify+Sans&display=swap" rel="stylesheet">
-  <script src="./context/themeContext.js"></script>
+  <script src="../context/themeContext.js"></script>
   <style>
     :root {
       --theme-background-light: rgba(12, 12, 12, 0.65);
@@ -150,6 +150,22 @@
     const confirmNo = document.getElementById('confirmNo');
 
     let confirmAction = null;
+    let activeSourceMode = 'spotify';
+    let isSpotifyAuthed = false;
+
+    function updateMoreWindowCompactState() {
+      const shouldCompact = !confirmAction && (activeSourceMode === 'local' || !isSpotifyAuthed);
+      window.api.setMoreWindowCompact?.(shouldCompact).catch(() => {});
+    }
+
+    function updateAccountVisibility() {
+      if (activeSourceMode === 'spotify' && isSpotifyAuthed) {
+        accountBtn.classList.remove('hidden');
+      } else {
+        accountBtn.classList.add('hidden');
+      }
+      updateMoreWindowCompactState();
+    }
 
     function showConfirm(message, action) {
       moreList.style.display = 'none';
@@ -157,6 +173,7 @@
       confirmMessage.textContent = message;
       confirmMessage.classList.add('show');
       confirmAction = action;
+      updateMoreWindowCompactState();
     }
 
     function hideConfirm() {
@@ -165,6 +182,7 @@
       confirmMessage.classList.remove('show');
       confirmMessage.textContent = '';
       confirmAction = null;
+      updateMoreWindowCompactState();
     }
 
     accountBtn.addEventListener('click', async () => {
@@ -206,28 +224,38 @@
     // Listen for authentication state changes
     if (window.api && window.api.onLoggedOut) {
       window.api.onLoggedOut(() => {
-        accountBtn.classList.add('hidden');
-        settingsBtn.classList.add('hidden');
+        isSpotifyAuthed = false;
+        updateAccountVisibility();
       });
     }
 
     if (window.api && window.api.onAuthed) {
       window.api.onAuthed(() => {
-        accountBtn.classList.remove('hidden');
-        settingsBtn.classList.remove('hidden');
+        isSpotifyAuthed = true;
+        updateAccountVisibility();
+      });
+    }
+
+    if (window.api && window.api.onSourceModeChanged) {
+      window.api.onSourceModeChanged((_event, mode) => {
+        activeSourceMode = mode || 'spotify';
+        updateAccountVisibility();
       });
     }
 
     // Check initial auth state
     async function checkAuthStateOnLoad() {
       try {
-        const authed = await window.api.isAuthed();
-        if (!authed) {
-          accountBtn.classList.add('hidden');
-          settingsBtn.classList.add('hidden');
-        }
+        const [authed, sourceMode] = await Promise.all([
+          window.api.isAuthed(),
+          window.api.getSourceMode?.().catch(() => 'spotify')
+        ]);
+        isSpotifyAuthed = !!authed;
+        activeSourceMode = sourceMode || 'spotify';
+        updateAccountVisibility();
       } catch (err) {
         console.error('Failed to check auth state:', err);
+        updateAccountVisibility();
       }
     }
 

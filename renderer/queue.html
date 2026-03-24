@@ -4,7 +4,7 @@
   <meta charset="utf-8" />
   <title>Queue</title>
   <link href="https://fonts.googleapis.com/css2?family=Pixelify+Sans&display=swap" rel="stylesheet">
-  <script src="./context/themeContext.js"></script>
+  <script src="../context/themeContext.js"></script>
   <style>
     :root {
       --theme-background: rgba(12, 12, 12, 0.95);
@@ -197,6 +197,18 @@
     const queueList = document.getElementById('queueList');
     let lastCurrentSongId = null;
     let lastUpcomingIds = [];
+    let activeSourceMode = 'spotify';
+    let lastQueueSongCount = null;
+
+    function updateQueueWindowSongCount(songCount) {
+      const normalizedSongCount = Math.max(0, Number(songCount) || 0);
+      if (lastQueueSongCount === normalizedSongCount) {
+        return;
+      }
+
+      lastQueueSongCount = normalizedSongCount;
+      window.api.setQueueWindowSongCount?.(normalizedSongCount).catch(() => {});
+    }
 
     const fmt = ms => {
       if (!Number.isFinite(ms)) return '0:00';
@@ -218,6 +230,7 @@
 
     function renderQueue(currentSong, upcomingSongs, animate = false, direction = 'next') {
       const items = [];
+      const hasUpcomingSongs = Array.isArray(upcomingSongs) && upcomingSongs.length > 0;
 
       if (currentSong) {
         items.push(`
@@ -228,7 +241,7 @@
         `);
       }
 
-      if (upcomingSongs && upcomingSongs.length > 0) {
+      if (hasUpcomingSongs) {
         const limited = upcomingSongs.slice(0, 2);
         items.push(...limited.map(song => `
           <div class="queue-item">
@@ -240,8 +253,11 @@
 
       if (items.length === 0) {
         queueList.innerHTML = '<div class="queue-empty">No songs</div>';
+        updateQueueWindowSongCount(0);
         return;
       }
+
+      updateQueueWindowSongCount(items.length);
 
       if (animate && lastCurrentSongId !== null) {
         // Fade out current song
@@ -293,17 +309,40 @@
       } catch (e) {
         console.error('Failed to fetch queue:', e);
         queueList.innerHTML = '<div class="queue-empty">Error loading queue</div>';
+        updateQueueWindowSongCount(0);
       }
+    }
+
+    async function initializeQueueMode() {
+      activeSourceMode = await window.api.getSourceMode().catch(() => 'spotify');
+      refreshQueue();
     }
 
     // Refresh queue every 2 seconds
     setInterval(refreshQueue, 2000);
-    refreshQueue();
+    initializeQueueMode();
 
     // Close queue window when user logs out
     if (window.api && window.api.onLoggedOut) {
       window.api.onLoggedOut(() => {
-        window.close();
+        if (activeSourceMode === 'spotify') {
+          window.close();
+        }
+      });
+    }
+
+    if (window.api && window.api.onSourceModeChanged) {
+      window.api.onSourceModeChanged((_e, mode) => {
+        activeSourceMode = mode;
+        refreshQueue();
+      });
+    }
+
+    if (window.api && window.api.onLocalPlaybackStateChanged) {
+      window.api.onLocalPlaybackStateChanged(() => {
+        if (activeSourceMode === 'local') {
+          refreshQueue();
+        }
       });
     }
 

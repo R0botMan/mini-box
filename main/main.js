@@ -6,11 +6,16 @@ const { pathToFileURL } = require('url');
 const { autoUpdater } = require('electron-updater');
 const { parseFile } = require('music-metadata');
 
-require('dotenv').config({ path: path.join(__dirname, '.env') });
+require('dotenv').config({ path: path.join(__dirname, '..', '.env') });
 
 // ===== Storage =====
-const storage = require('./context/storage');
-const logger = require('./context/logger');
+const storage = require('../context/storage');
+const logger = require('../context/logger');
+const registerQueueWindow = require('./queue');
+const registerMoreWindow = require('./more');
+const registerSettingsWindow = require('./settings');
+const registerLocalWindow = require('./local');
+const registerPatchWindow = require('./patch');
 
 // ===== Secure storage =====
 const keytar = require('keytar');
@@ -85,6 +90,28 @@ function isLocalAudioSourcePresent(source, sources = getLocalAudioSources()) {
   return collection.includes(source.path);
 }
 
+function sameLocalAudioSource(left, right) {
+  return !!left && !!right && left.type === right.type && left.path === right.path;
+}
+
+function getFirstAvailableLocalAudioSource(sources = getLocalAudioSources()) {
+  if (sources.files.length) {
+    return {
+      type: 'file',
+      path: sources.files[0]
+    };
+  }
+
+  if (sources.folders.length) {
+    return {
+      type: 'folder',
+      path: sources.folders[0]
+    };
+  }
+
+  return null;
+}
+
 function getLocalSourceItems(sources = getLocalAudioSources()) {
   const fileItems = sources.files.map(filePath => ({
     id: `file:${filePath}`,
@@ -103,6 +130,10 @@ function getLocalSourceItems(sources = getLocalAudioSources()) {
   }));
 
   return [...fileItems, ...folderItems];
+}
+
+function getLocalImportCount(sources = getLocalAudioSources()) {
+  return getLocalSourceItems(sources).length;
 }
 
 function getLocalAudioSources() {
@@ -225,7 +256,7 @@ async function collectAudioFilesForSource(source) {
   }
 
   if (source.type === 'file') {
-    return [source.path];
+    return getLocalAudioSources().files;
   }
 
   return collectAudioFilesFromFolder(source.path, []);
@@ -302,6 +333,7 @@ function broadcastLocalAudioSourcesChanged(sources) {
   if (queueWin && !queueWin.isDestroyed()) queueWin.webContents.send('localAudioSourcesChanged', sources);
   if (settingsWin && !settingsWin.isDestroyed()) settingsWin.webContents.send('localAudioSourcesChanged', sources);
   if (localWin && !localWin.isDestroyed()) localWin.webContents.send('localAudioSourcesChanged', sources);
+  applyLocalWindowLayout();
 }
 
 function broadcastLocalActiveSourceChanged(payload) {
@@ -313,6 +345,7 @@ function broadcastLocalActiveSourceChanged(payload) {
 function broadcastLocalPlaybackStateChanged(state) {
   if (win && !win.isDestroyed()) win.webContents.send('localPlaybackStateChanged', state);
   if (queueWin && !queueWin.isDestroyed()) queueWin.webContents.send('localPlaybackStateChanged', state);
+  if (localWin && !localWin.isDestroyed()) localWin.webContents.send('localPlaybackStateChanged', state);
 }
 
 async function refresh() {
@@ -666,6 +699,27 @@ ipcMain.handle('getQueue', async () => {
   }
 });
 
+ipcMain.handle('playLocalTrack', async (_e, localPath) => {
+  const normalizedPath = typeof localPath === 'string' ? path.normalize(localPath) : '';
+  if (!normalizedPath || !win || win.isDestroyed()) {
+    return false;
+  }
+
+  const activeSource = getActiveLocalAudioSource();
+  if (!activeSource) {
+    return false;
+  }
+
+  const library = await getLocalAudioLibrary(activeSource);
+  const trackExists = library.some(track => track.localPath === normalizedPath);
+  if (!trackExists) {
+    return false;
+  }
+
+  win.webContents.send('playLocalTrackRequested', { localPath: normalizedPath });
+  return true;
+});
+
 ipcMain.handle('forceRefresh', async () => {
   logger.log('refresh', 'forced refresh triggered');
   // Broadcast refresh signal to all windows - they'll call getCurrent
@@ -899,11 +953,18 @@ ipcMain.handle('removeLocalAudioSources', async (_e, entries = []) => {
   });
 
   invalidateLocalAudioLibraryCache();
-  const nextActiveSource = syncActiveLocalAudioSource(nextSources);
+  let nextActiveSource = syncActiveLocalAudioSource(nextSources);
 
   if (previousActiveSource && !nextActiveSource) {
+    const fallbackSource = getFirstAvailableLocalAudioSource(nextSources);
+    if (fallbackSource) {
+      nextActiveSource = setActiveLocalAudioSource(fallbackSource);
+    }
+  }
+
+  if (!sameLocalAudioSource(previousActiveSource, nextActiveSource)) {
     clearLocalPlaybackState();
-    broadcastLocalActiveSourceChanged({ source: null, autoplay: false });
+    broadcastLocalActiveSourceChanged({ source: nextActiveSource, autoplay: false });
   }
 
   broadcastLocalAudioSourcesChanged(nextSources);
@@ -922,10 +983,16 @@ ipcMain.handle('clearLocalAudioFiles', async () => {
   });
 
   invalidateLocalAudioLibraryCache();
-  const nextActiveSource = syncActiveLocalAudioSource(nextSources);
+  let nextActiveSource = syncActiveLocalAudioSource(nextSources);
   if (previousActiveSource && !nextActiveSource) {
+    const fallbackSource = getFirstAvailableLocalAudioSource(nextSources);
+    if (fallbackSource) {
+      nextActiveSource = setActiveLocalAudioSource(fallbackSource);
+    }
+  }
+  if (!sameLocalAudioSource(previousActiveSource, nextActiveSource)) {
     clearLocalPlaybackState();
-    broadcastLocalActiveSourceChanged({ source: null, autoplay: false });
+    broadcastLocalActiveSourceChanged({ source: nextActiveSource, autoplay: false });
   }
   broadcastLocalAudioSourcesChanged(nextSources);
   return nextSources;
@@ -940,10 +1007,16 @@ ipcMain.handle('clearLocalAudioFolders', async () => {
   });
 
   invalidateLocalAudioLibraryCache();
-  const nextActiveSource = syncActiveLocalAudioSource(nextSources);
+  let nextActiveSource = syncActiveLocalAudioSource(nextSources);
   if (previousActiveSource && !nextActiveSource) {
+    const fallbackSource = getFirstAvailableLocalAudioSource(nextSources);
+    if (fallbackSource) {
+      nextActiveSource = setActiveLocalAudioSource(fallbackSource);
+    }
+  }
+  if (!sameLocalAudioSource(previousActiveSource, nextActiveSource)) {
     clearLocalPlaybackState();
-    broadcastLocalActiveSourceChanged({ source: null, autoplay: false });
+    broadcastLocalActiveSourceChanged({ source: nextActiveSource, autoplay: false });
   }
   broadcastLocalAudioSourcesChanged(nextSources);
   return nextSources;
@@ -1085,7 +1158,7 @@ function createWindow() {
     backgroundColor: '#00000000',
     resizable: false,
     alwaysOnTop: true,
-    icon: path.join(__dirname, 'assets/MiniBoxIcon2.png'),
+    icon: path.join(__dirname, '../assets/MiniBoxIcon2.png'),
     webPreferences: {
       preload: path.join(__dirname, 'preload.js'),
       nodeIntegration: false,
@@ -1103,487 +1176,115 @@ function createWindow() {
     show: false
   });
 
-  win.loadFile('index.html');
+  win.loadFile(path.join(__dirname, '../renderer/index.html'));
   win.once('ready-to-show', () => win.show());
   // win.webContents.openDevTools({ mode: 'detach' }); //optional
 }
 
-// ===== Queue Window =====
-function createQueueWindow() {
-  if (queueWin) {
-    queueWin.focus();
-    return;
-  }
-
-  queueWin = new BrowserWindow({
-    width: 304,
-    height: 120,
-    frame: false,
-    transparent: true,
-    backgroundColor: '#00000000',
-    resizable: false,
-    alwaysOnTop: true,
-    show: false,
-    webPreferences: {
-      preload: path.join(__dirname, 'preload.js'),
-      nodeIntegration: false,
-      contextIsolation: true,
-      enableRemoteModule: false,
-      sandbox: true,
+const { createQueueWindow, closeQueueWindow } = registerQueueWindow({
+  BrowserWindow,
+  ipcMain,
+  path,
+  baseDir: __dirname,
+  getMainWindow: () => win,
+  getQueueWindow: () => queueWin,
+  setQueueWindow: (nextWindow) => { queueWin = nextWindow; },
+  closeMoreWindow: () => {
+    if (moreWin && !moreWin.isDestroyed()) {
+      try {
+        moreWin.close();
+      } catch (e) {}
+      moreWin = null;
     }
-  });
-
-  queueWin.loadFile('queue.html');
-
-  // Position queue window above the main player window
-  const [x, y] = win.getPosition();
-  const queueWidth = 70;
-  const queueHeight = 70;
-  queueWin.setPosition(x + queueWidth, y - queueHeight - 10);
-
-  // Make queue window follow main window
-  const moveHandler = () => {
-    try {
-      if (queueWin && !queueWin.isDestroyed()) {
-        const [newX, newY] = win.getPosition();
-        queueWin.setPosition(newX + queueWidth, newY - queueHeight - 10);
-      }
-    } catch (e) {}
-  };
-  win.on('move', moveHandler);
-
-  queueWin.once('ready-to-show', () => {
-    queueWin.show();
-    try {
-      if (win && !win.isDestroyed()) {
-        win.webContents.send('queueOpened');
-      }
-    } catch (e) {}
-  });
-
-  queueWin.on('closed', () => {
-    queueWin = null;
-    try {
-      if (win && !win.isDestroyed()) {
-        win.removeListener('move', moveHandler);
-        win.webContents.send('queueClosed');
-      }
-    } catch (e) {}
-  });
-}
-
-ipcMain.handle('toggleQueue', () => {
-  // Close more window if open
-  if (moreWin && !moreWin.isDestroyed()) {
-    try {
-      moreWin.close();
-    } catch (e) {}
-    moreWin = null;
+  },
+  closeSettingsWindow: () => {
+    if (settingsWin && !settingsWin.isDestroyed()) {
+      try {
+        settingsWin.close();
+      } catch (e) {}
+      settingsWin = null;
+    }
+  },
+  closeLocalWindow: () => {
+    if (localWin && !localWin.isDestroyed()) {
+      try {
+        localWin.close();
+      } catch (e) {}
+      localWin = null;
+    }
   }
-
-  // Close settings window if open
-  if (settingsWin && !settingsWin.isDestroyed()) {
-    try {
-      settingsWin.close();
-    } catch (e) {}
-    settingsWin = null;
-  }
-
-  if (localWin && !localWin.isDestroyed()) {
-    try {
-      localWin.close();
-    } catch (e) {}
-    localWin = null;
-  }
-
-  if (queueWin && !queueWin.isDestroyed()) {
-    try {
-      queueWin.close();
-    } catch (e) {}
-    queueWin = null;
-  } else {
-    createQueueWindow();
-  }
-  return !queueWin;
 });
 
-// ===== More Window =====
-function createMoreWindow() {
-  if (moreWin) {
-    moreWin.focus();
-    return;
-  }
-
-  moreWin = new BrowserWindow({
-    width: 304,
-    height: 140,
-    frame: false,
-    transparent: true,
-    resizable: false,
-    alwaysOnTop: true,
-    show: false,
-    webPreferences: {
-      preload: path.join(__dirname, 'preload.js'),
-      nodeIntegration: false,
-      contextIsolation: true,
-      enableRemoteModule: false,
-      sandbox: true,
+const { createMoreWindow, closeMoreWindow } = registerMoreWindow({
+  BrowserWindow,
+  ipcMain,
+  path,
+  baseDir: __dirname,
+  getMainWindow: () => win,
+  getMoreWindow: () => moreWin,
+  setMoreWindow: (nextWindow) => { moreWin = nextWindow; },
+  shouldStartCompact: () => currentSourceMode === 'local' || !accessToken,
+  closeQueueWindow,
+  closeSettingsWindow: () => {
+    if (settingsWin && !settingsWin.isDestroyed()) {
+      try {
+        settingsWin.close();
+      } catch (e) {}
+      settingsWin = null;
     }
-  });
-
-  moreWin.loadFile('more.html');
-
-  // Position more window above the main player window
-  const [x, y] = win.getPosition();
-  const moreWidth = 230;
-  const moreHeight = 80;
-  moreWin.setPosition(x + moreWidth, y - moreHeight - 10);
-
-  // Make more window follow main window
-  const moveHandler = () => {
-    try {
-      if (moreWin && !moreWin.isDestroyed()) {
-        const [newX, newY] = win.getPosition();
-        moreWin.setPosition(newX + moreWidth, newY - moreHeight - 10);
-      }
-    } catch (e) {}
-  };
-  win.on('move', moveHandler);
-
-  moreWin.once('ready-to-show', () => {
-    moreWin.show();
-    try {
-      if (win && !win.isDestroyed()) {
-        win.webContents.send('moreOpened');
-      }
-    } catch (e) {}
-  });
-
-  moreWin.on('closed', () => {
-    moreWin = null;
-    try {
-      if (win && !win.isDestroyed()) {
-        win.removeListener('move', moveHandler);
-        win.webContents.send('moreClosed');
-      }
-    } catch (e) {}
-  });
-}
-
-ipcMain.handle('toggleMore', () => {
-  // Close queue window if open
-  if (queueWin && !queueWin.isDestroyed()) {
-    try {
-      queueWin.close();
-    } catch (e) {}
-    queueWin = null;
+  },
+  closeLocalWindow: () => {
+    if (localWin && !localWin.isDestroyed()) {
+      try {
+        localWin.close();
+      } catch (e) {}
+      localWin = null;
+    }
   }
-
-  // Close settings window if open
-  if (settingsWin && !settingsWin.isDestroyed()) {
-    try {
-      settingsWin.close();
-    } catch (e) {}
-    settingsWin = null;
-  }
-
-  if (localWin && !localWin.isDestroyed()) {
-    try {
-      localWin.close();
-    } catch (e) {}
-    localWin = null;
-  }
-
-  if (moreWin && !moreWin.isDestroyed()) {
-    try {
-      moreWin.close();
-    } catch (e) {}
-    moreWin = null;
-  } else {
-    createMoreWindow();
-  }
-  return !moreWin;
 });
 
-// ===== Settings Window =====
-function createSettingsWindow() {
-  if (settingsWin) {
-    settingsWin.focus();
-    return;
-  }
-
-  settingsWin = new BrowserWindow({
-    width: 280,
-    height: 220,
-    frame: false,
-    transparent: true,
-    backgroundColor: '#00000000',
-    resizable: false,
-    alwaysOnTop: true,
-    show: false,
-    webPreferences: {
-      preload: path.join(__dirname, 'preload.js'),
-      nodeIntegration: false,
-      contextIsolation: true,
-      enableRemoteModule: false,
-      sandbox: true,
+const { createSettingsWindow, closeSettingsWindow } = registerSettingsWindow({
+  BrowserWindow,
+  ipcMain,
+  path,
+  baseDir: __dirname,
+  getMainWindow: () => win,
+  getSettingsWindow: () => settingsWin,
+  setSettingsWindow: (nextWindow) => { settingsWin = nextWindow; },
+  closeQueueWindow,
+  closeMoreWindow,
+  closeLocalWindow: () => {
+    if (localWin && !localWin.isDestroyed()) {
+      try {
+        localWin.close();
+      } catch (e) {}
+      localWin = null;
     }
-  });
-
-  settingsWin.loadFile('settings.html');
-
-  // Center settings window relative to main window
-  const [x, y] = win.getPosition();
-  const [winWidth, winHeight] = win.getSize();
-  const settingsWidth = 390;
-  const settingsHeight = 560;
-  const centeredX = x + (winWidth - settingsWidth) / 2;
-  const centeredY = y + (winHeight - settingsHeight) / 2;
-  settingsWin.setPosition(Math.round(centeredX), Math.round(centeredY));
-
-  // Make settings window follow main window
-  const moveHandler = () => {
-    try {
-      if (settingsWin && !settingsWin.isDestroyed()) {
-        const [newX, newY] = win.getPosition();
-        const centeredX = newX + (winWidth - settingsWidth) / 2;
-        const centeredY = newY + (winHeight - settingsHeight) / 2;
-        settingsWin.setPosition(Math.round(centeredX), Math.round(centeredY));
-      }
-    } catch (e) {}
-  };
-  win.on('move', moveHandler);
-
-  settingsWin.once('ready-to-show', () => {
-    settingsWin.show();
-    try {
-      if (win && !win.isDestroyed()) {
-        win.webContents.send('settingsOpened');
-      }
-    } catch (e) {}
-  });
-
-  settingsWin.on('closed', () => {
-    settingsWin = null;
-    try {
-      if (win && !win.isDestroyed()) {
-        win.removeListener('move', moveHandler);
-        win.webContents.send('settingsClosed');
-      }
-    } catch (e) {}
-  });
-}
-
-ipcMain.handle('toggleSettings', () => {
-  // Close queue, more, and local windows if open
-  if (queueWin && !queueWin.isDestroyed()) {
-    try {
-      queueWin.close();
-    } catch (e) {}
-    queueWin = null;
   }
-
-  if (moreWin && !moreWin.isDestroyed()) {
-    try {
-      moreWin.close();
-    } catch (e) {}
-    moreWin = null;
-  }
-
-  if (localWin && !localWin.isDestroyed()) {
-    try {
-      localWin.close();
-    } catch (e) {}
-    localWin = null;
-  }
-
-  if (settingsWin && !settingsWin.isDestroyed()) {
-    try {
-      settingsWin.close();
-    } catch (e) {}
-    settingsWin = null;
-  } else {
-    createSettingsWindow();
-  }
-  return !settingsWin;
 });
 
-// ===== Local Audio Window =====
-function createLocalWindow() {
-  if (localWin) {
-    localWin.focus();
-    return;
-  }
-
-  localWin = new BrowserWindow({
-    width: 360,
-    height: 250,
-    frame: false,
-    transparent: true,
-    backgroundColor: '#00000000',
-    resizable: false,
-    alwaysOnTop: true,
-    show: false,
-    webPreferences: {
-      preload: path.join(__dirname, 'preload.js'),
-      nodeIntegration: false,
-      contextIsolation: true,
-      enableRemoteModule: false,
-      sandbox: true,
-    }
-  });
-
-  localWin.loadFile('local.html');
-
-  const [x, y] = win.getPosition();
-  const [winWidth] = win.getSize();
-  const localWidth = 360;
-  const localHeight = 210;
-  const centeredX = x + (winWidth - localWidth) / 2;
-  const centeredY = y - localHeight - 12;
-  localWin.setPosition(Math.round(centeredX), Math.round(centeredY));
-
-  const moveHandler = () => {
-    try {
-      if (localWin && !localWin.isDestroyed()) {
-        const [newX, newY] = win.getPosition();
-        const nextX = newX + (winWidth - localWidth) / 2;
-        const nextY = newY - localHeight - 12;
-        localWin.setPosition(Math.round(nextX), Math.round(nextY));
-      }
-    } catch (e) {}
-  };
-  win.on('move', moveHandler);
-
-  localWin.once('ready-to-show', () => {
-    localWin.show();
-    try {
-      if (win && !win.isDestroyed()) {
-        win.webContents.send('localOpened');
-      }
-    } catch (e) {}
-  });
-
-  localWin.on('closed', () => {
-    localWin = null;
-    try {
-      if (win && !win.isDestroyed()) {
-        win.removeListener('move', moveHandler);
-        win.webContents.send('localClosed');
-      }
-    } catch (e) {}
-  });
-}
-
-ipcMain.handle('toggleLocal', () => {
-  if (queueWin && !queueWin.isDestroyed()) {
-    try {
-      queueWin.close();
-    } catch (e) {}
-    queueWin = null;
-  }
-
-  if (moreWin && !moreWin.isDestroyed()) {
-    try {
-      moreWin.close();
-    } catch (e) {}
-    moreWin = null;
-  }
-
-  if (settingsWin && !settingsWin.isDestroyed()) {
-    try {
-      settingsWin.close();
-    } catch (e) {}
-    settingsWin = null;
-  }
-
-  if (localWin && !localWin.isDestroyed()) {
-    try {
-      localWin.close();
-    } catch (e) {}
-    localWin = null;
-  } else {
-    createLocalWindow();
-  }
-  return !localWin;
+const { createLocalWindow, closeLocalWindow, applyLocalWindowLayout } = registerLocalWindow({
+  BrowserWindow,
+  ipcMain,
+  path,
+  baseDir: __dirname,
+  getMainWindow: () => win,
+  getLocalWindow: () => localWin,
+  setLocalWindow: (nextWindow) => { localWin = nextWindow; },
+  getLocalImportCount: () => getLocalImportCount(),
+  closeQueueWindow,
+  closeMoreWindow,
+  closeSettingsWindow
 });
 
-// ===== Patch Notes Window =====
-function createPatchWindow() {
-  if (patchWin) {
-    patchWin.focus();
-    return;
-  }
-
-  patchWin = new BrowserWindow({
-    width: 480,
-    height: 650,
-    frame: false,
-    transparent: true,
-    backgroundColor: '#00000000',
-    resizable: false,
-    alwaysOnTop: true,
-    show: false,
-    webPreferences: {
-      preload: path.join(__dirname, 'preload.js'),
-      nodeIntegration: false,
-      contextIsolation: true,
-      enableRemoteModule: false,
-      sandbox: true,
-    }
-  });
-
-  patchWin.loadFile('patch.html');
-
-  // Center patch window relative to main window
-  const [x, y] = win.getPosition();
-  const [winWidth, winHeight] = win.getSize();
-  const patchWidth = 1280;
-  const patchHeight = 1130;
-  const centeredX = x + (winWidth - patchWidth) / 2;
-  const centeredY = y + (winHeight - patchHeight) / 2;
-  patchWin.setPosition(Math.round(centeredX), Math.round(centeredY));
-
-  // Make patch window follow main window
-  const moveHandler = () => {
-    try {
-      if (patchWin && !patchWin.isDestroyed()) {
-        const [newX, newY] = win.getPosition();
-        const centeredX = newX + (winWidth - patchWidth) / 2;
-        const centeredY = newY + (winHeight - patchHeight) / 2;
-        patchWin.setPosition(Math.round(centeredX), Math.round(centeredY));
-      }
-    } catch (e) {}
-  };
-  win.on('move', moveHandler);
-
-  patchWin.once('ready-to-show', () => {
-    patchWin.show();
-  });
-
-  patchWin.on('closed', () => {
-    try {
-      if (win && !win.isDestroyed()) {
-        win.removeListener('move', moveHandler);
-      }
-    } catch (e) {}
-    patchWin = null;
-  });
-}
-
-ipcMain.handle('closePatch', () => {
-  if (patchWin && !patchWin.isDestroyed()) {
-    try {
-      patchWin.close();
-    } catch (e) {}
-    patchWin = null;
-  }
-  return true;
-});
-
-ipcMain.handle('openPatchWindow', () => {
-  createPatchWindow();
-  return true;
+const { createPatchWindow } = registerPatchWindow({
+  BrowserWindow,
+  ipcMain,
+  path,
+  baseDir: __dirname,
+  getMainWindow: () => win,
+  getPatchWindow: () => patchWin,
+  setPatchWindow: (nextWindow) => { patchWin = nextWindow; }
 });
 
 app.whenReady().then(async () => {
@@ -1600,7 +1301,7 @@ app.whenReady().then(async () => {
   }
   
   // Set app icon for taskbar and system
-  const iconPath = path.join(__dirname, 'assets/MiniBoxIcon2.ico');
+  const iconPath = path.join(__dirname, '../assets/MiniBoxIcon2.ico');
   if (process.platform === 'win32') {
     app.setAppUserModelId('com.minibox.spotify');
   }

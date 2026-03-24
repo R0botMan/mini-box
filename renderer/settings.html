@@ -4,7 +4,7 @@
   <meta charset="utf-8" />
   <title>Settings</title>
   <link href="https://fonts.googleapis.com/css2?family=Pixelify+Sans&display=swap" rel="stylesheet">
-  <script src="./context/themeContext.js"></script>
+  <script src="../context/themeContext.js"></script>
   <style>
     :root {
       --theme-background: rgba(12, 12, 12, 0.95);
@@ -46,7 +46,7 @@
 
     .settings-container {
       width: 220px;
-      height: 150px;
+      height: 170px;
       background: var(--theme-background);
       backdrop-filter: blur(6px);
       border-radius: 10px;
@@ -63,6 +63,40 @@
 
     .settings-container::-webkit-scrollbar {
       display: none;
+    }
+
+    .settings-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 8px;
+      -webkit-app-region: no-drag;
+    }
+
+    .settings-title {
+      font-size: 13px;
+      color: var(--theme-text-primary);
+    }
+
+    .settings-close-btn {
+      -webkit-app-region: no-drag;
+      flex-shrink: 0;
+      background: transparent;
+      border: none;
+      color: var(--theme-text-opacity);
+      font-size: 18px;
+      cursor: pointer;
+      padding: 0;
+      width: 24px;
+      height: 24px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      transition: color 0.2s;
+    }
+
+    .settings-close-btn:hover {
+      color: var(--theme-text-primary);
     }
 
 
@@ -226,7 +260,12 @@
 </head>
 <body>
   <div class="settings-container">
+    <div class="settings-header">
+      <div class="settings-title">Settings</div>
+      <button class="settings-close-btn" id="closeSettingsBtn" title="Close">✕</button>
+    </div>
     <div class="settings-section">
+      <!-- Theme Toggle -->
       <div class="settings-item">
         <span class="settings-label">Theme:</span>
         <div class="theme-toggle">
@@ -234,17 +273,25 @@
           <button class="theme-btn" id="lightTheme">Light</button>
         </div>
       </div>
-
+      <!-- Source Mode Toggle -->
+      <div class="settings-item">
+        <span class="settings-label">Source:</span>
+        <div class="theme-toggle">
+          <button class="theme-btn active" id="spotifySource">Spotify</button>
+          <button class="theme-btn" id="localSource">Local Files</button>
+        </div>
+      </div>
+      <!-- App Runtime Display -->
       <div class="settings-item">
         <span class="settings-label">App Runtime:</span>
         <span class="runtime-display" id="runtime">00:00:00</span>
       </div>
-
+      <!-- Version Display -->
       <div class="settings-item">
         <span class="settings-label">Version:</span>
         <span class="runtime-display" id="version">v1.0.0</span>
       </div>
-
+      <!-- Update Check --> 
       <div class="settings-item">
         <span class="settings-label">Update:</span>
         <div style="display: flex; gap: 4px; align-items: center;">
@@ -252,18 +299,18 @@
           <span class="runtime-display" id="updateStatus"></span>
         </div>
       </div>
-
+      <!-- Build Info Display -->
       <div class="settings-item">
         <span class="settings-label">Build:</span>
         <span class="runtime-display" id="buildInfo">Electron -</span>
       </div>
-
+      <!-- Patch Notes Button -->
       <div class="settings-item">
         <span class="settings-label">Patch Notes:</span>
         <button class="theme-btn" id="viewPatchBtn" style="padding: 2px 6px; font-size: 11px;">View</button>
       </div>
     </div>
-
+    <!-- Action Buttons -->
     <div class="settings-buttons">
       <button class="settings-btn danger" id="signOutBtn">Sign Out</button>
       <button class="settings-btn" id="clearCacheBtn">Clear Cache</button>
@@ -281,12 +328,15 @@
   <script>
     const darkTheme = document.getElementById('darkTheme');
     const lightTheme = document.getElementById('lightTheme');
+    const spotifySource = document.getElementById('spotifySource');
+    const localSource = document.getElementById('localSource');
     const runtimeDisplay = document.getElementById('runtime');
     const versionDisplay = document.getElementById('version');
     const buildInfoDisplay = document.getElementById('buildInfo');
     const checkUpdatesBtn = document.getElementById('checkUpdatesBtn');
     const updateStatusDisplay = document.getElementById('updateStatus');
     const signOutBtn = document.getElementById('signOutBtn');
+    const closeSettingsBtn = document.getElementById('closeSettingsBtn');
     const confirmDialog = document.getElementById('confirmDialog');
     const confirmMessage = document.getElementById('confirmMessage');
     const confirmYes = document.getElementById('confirmYes');
@@ -332,6 +382,14 @@
     }
 
     loadVersionInfo();
+
+    closeSettingsBtn.addEventListener('click', async () => {
+      try {
+        await window.api.toggleSettings();
+      } catch (err) {
+        console.error('Failed to close settings window:', err);
+      }
+    });
 
     // Check for updates
     checkUpdatesBtn.addEventListener('click', async () => {
@@ -431,6 +489,37 @@
         window.api.setTheme('light').catch(err => console.error('Failed to set theme:', err));
       }
     });
+    // Source mode toggle
+    function applySourceMode(mode) {
+      if (mode === 'local') {
+        localSource.classList.add('active');
+        spotifySource.classList.remove('active');
+      } else {
+        spotifySource.classList.add('active');
+        localSource.classList.remove('active');
+      }
+    }
+    // Load source mode preference on startup
+    async function loadSourceModePreference() {
+      if (window.api && window.api.getSourceMode) {
+        const mode = await window.api.getSourceMode().catch(() => 'spotify');
+        applySourceMode(mode);
+      }
+    }
+    // Handle source mode changes
+    spotifySource.addEventListener('click', () => {
+      applySourceMode('spotify');
+      if (window.api && window.api.setSourceMode) {
+        window.api.setSourceMode('spotify').catch(err => console.error('Failed to set source mode:', err));
+      }
+    });
+    // Handle source mode changes
+    localSource.addEventListener('click', () => {
+      applySourceMode('local');
+      if (window.api && window.api.setSourceMode) {
+        window.api.setSourceMode('local').catch(err => console.error('Failed to set source mode:', err));
+      }
+    });
 
     // Sign out button
     signOutBtn.addEventListener('click', () => {
@@ -510,6 +599,18 @@
       });
     }
 
+    if (window.api && window.api.onSourceModeChanged) {
+      window.api.onSourceModeChanged((_e, mode) => {
+        applySourceMode(mode);
+      });
+    }
+
+    if (window.api && window.api.onLocalAudioSourcesChanged) {
+      window.api.onLocalAudioSourcesChanged((_e, sources) => {
+        renderLocalAudioSources(sources);
+      });
+    }
+
     // Load theme preference
     async function loadThemePreference() {
       if (window.api && window.api.getTheme) {
@@ -524,10 +625,17 @@
       }
     }
 
+    async function loadPreferences() {
+      await Promise.all([
+        loadThemePreference(),
+        loadSourceModePreference()
+      ]);
+    }
+
     if (document.readyState === 'loading') {
-      document.addEventListener('DOMContentLoaded', loadThemePreference);
+      document.addEventListener('DOMContentLoaded', loadPreferences);
     } else {
-      loadThemePreference();
+      loadPreferences();
     }
 
     // Initialize theme

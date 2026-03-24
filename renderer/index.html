@@ -4,7 +4,7 @@
   <meta charset="utf-8" />
   <title>MiniBox</title>
   <link href="https://fonts.googleapis.com/css2?family=Pixelify+Sans&display=swap" rel="stylesheet">
-  <script src="./context/themeContext.js"></script>
+  <script src="../context/themeContext.js"></script>
   <style>
     :root {
       --theme-text-primary: #fff;
@@ -116,6 +116,36 @@
       position: relative;
     }
 
+    .art.no-art {
+      --art-icon: url('../assets/MusicNote.png');
+      background-size: 36px 36px;
+      background-position: center;
+    }
+
+    .art.no-art::before,
+    .art.no-art::after {
+      content: "";
+      position: absolute;
+      inset: 0;
+      pointer-events: none;
+      image-rendering: pixelated;
+      -webkit-mask: var(--art-icon) center/36px 36px no-repeat;
+      mask: var(--art-icon) center/36px 36px no-repeat;
+      mix-blend-mode: var(--theme-blend-mode);
+      opacity: 1;
+      will-change: transform;
+    }
+
+    .art.no-art::before {
+      background: var(--theme-glitch-color-1);
+      animation: glitch 1.6s steps(1,end) infinite;
+    }
+
+    .art.no-art::after {
+      background: var(--theme-glitch-color-2);
+      animation: glitch 1.6s steps(1,end) infinite reverse;
+    }
+
     /* Meta + controls */
     .meta { 
       min-width: 0; 
@@ -195,7 +225,7 @@
       45%{transform:translate(0,-1px)} 60%{transform:translate(-1px,1px)} 75%{transform:translate(1px,0)}
       90%{transform:translate(0,1px)} 100%{transform:translate(0,0)}
     }
-    @media (prefers-reduced-motion: reduce){ .pixel-btn::before,.pixel-btn::after, .mini-icon:before, .mini-icon:after, .vIcon:before, .vIcon:after { animation:none; } }
+    @media (prefers-reduced-motion: reduce){ .pixel-btn::before,.pixel-btn::after, .mini-icon:before, .mini-icon:after, .vIcon:before, .vIcon:after, .art.no-art::before, .art.no-art::after { animation:none; } }
 
     /* Progress bar along bottom, after art */
     .progress {
@@ -297,7 +327,7 @@
       gap:6px; 
     }
     .vIcon {
-      --icon: url('./assets/VolumeButton.png');
+      --icon: url('../assets/VolumeButton.png');
       width:16px; 
       height:16px; 
       background: var(--icon) center/contain no-repeat;
@@ -437,15 +467,16 @@
 
     <div class="controls">
       <button id="login" style="padding:6px 12px; background:#fff; color:#000; border:0; border-radius:4px; font-family:inherit; font-weight:700; font-size:12px; cursor:pointer; -webkit-app-region:no-drag;" title="Login">Login</button>
-      <button class="pixel-btn" id="prev" style="--icon:url('./assets/PrevButton.png')"  title="Previous"></button>
-      <button class="pixel-btn" id="play" style="--icon:url('./assets/PlayButton.png')" title="Play/Pause"></button>
-      <button class="pixel-btn" id="next" style="--icon:url('./assets/NextButton.png')"  title="Next"></button>
+      <button class="pixel-btn" id="prev" style="--icon:url('../assets/PrevButton.png')"  title="Previous"></button>
+      <button class="pixel-btn" id="play" style="--icon:url('../assets/PlayButton.png')" title="Play/Pause"></button>
+      <button class="pixel-btn" id="next" style="--icon:url('../assets/NextButton.png')"  title="Next"></button>
       <!-- Volume button (top-right) -->
-      <button class="pixel-btn" id="volBtn" style="--icon:url('./assets/VolumeButton.png')" title="Volume"></button>
+      <button class="pixel-btn" id="volBtn" style="--icon:url('../assets/VolumeButton.png')" title="Volume"></button>
     </div>
     <div class="options"> 
-      <button class="pixel-btn" id="queueBtn" style="--icon:url('./assets/QueueButton.png')" title="Queue"></button>
-      <button class="pixel-btn" id="moreBtn" style="--icon:url('./assets/MoreButton.png')" title="More"></button>
+      <button class="pixel-btn" id="queueBtn" style="--icon:url('../assets/QueueButton.png')" title="Queue"></button>
+      <button class="pixel-btn" id="localBtn" style="--icon:url('../assets/ImportIcon.png')" title="Local Audio"></button>
+      <button class="pixel-btn" id="moreBtn" style="--icon:url('../assets/MoreButton.png')" title="More"></button>
       <div class="more-menu" id="moreMenu">
         <button id="accountBtn">Account</button>
         <button id="signOutBtn">Sign Out</button>
@@ -461,7 +492,7 @@
 
     <!-- Volume popup -->
     <div class="vol-pop" id="volPop">
-      <button class="mini-icon" id="muteBtn" title="Mute/Unmute" style="--icon:url('./assets/VolumeMute.png')"></button>
+      <button class="mini-icon" id="muteBtn" title="Mute/Unmute" style="--icon:url('../assets/VolumeMute.png')"></button>
       <div class="bar" id="vBar"><div class="fill" id="vFill"></div></div>
       <div class="vRight">
         <i class="vIcon" id="vIcon"></i>
@@ -484,6 +515,9 @@
 
   <script>
     const art = document.getElementById('art');
+    const artFrame = document.querySelector('.art-frame');
+    const metaEl = document.querySelector('.meta');
+    const progressEl = document.querySelector('.progress');
     const titleEl  = document.getElementById('title');
     const artistEl = document.getElementById('artist');
 
@@ -491,6 +525,7 @@
     const btnPlay  = document.getElementById('play');
     const btnNext  = document.getElementById('next');
     const btnQueue = document.getElementById('queueBtn');
+    const btnLocal = document.getElementById('localBtn');
     const btnLogin = document.getElementById('login');
     const moreBtn  = document.getElementById('moreBtn');
 
@@ -530,19 +565,369 @@
     let isPlaying = false;
     let pollId = null;
     let isQueueOpen = false;
+    let isLocalOpen = false;
     let isMoreOpen = false;
     let isVolPopOpen = false;
+    let activeSourceMode = 'spotify';
+    let activeProvider = null;
     let wasInApparentPrivateSession = false; // Track private session state transitions
+
+    const localAudio = new Audio();
+    localAudio.preload = 'metadata';
+
+    const localProvider = {
+      key: 'local',
+      requiresLogin: false,
+      supportsQueueWindow: true,
+      usesPolling: false,
+      emptyState: {
+        title: 'No local audio imported',
+        artist: 'Add files or folders in Local'
+      },
+      noPlaybackState: {
+        title: 'No local track selected',
+        artist: 'Choose an imported source in Local'
+      },
+      noTracksState: {
+        title: 'No playable tracks found',
+        artist: 'Pick another imported file or folder'
+      },
+      tracks: [],
+      currentIndex: -1,
+      durationMs: 0,
+      progressMs: 0,
+      volume: 100,
+      isPlaying: false,
+      activeSource: null,
+      currentTrackPath: null,
+      lastPlaybackStatePushAt: 0,
+
+      pushPlaybackState(force = false) {
+        const now = Date.now();
+        if (!force && now - this.lastPlaybackStatePushAt < 250) {
+          return;
+        }
+
+        this.lastPlaybackStatePushAt = now;
+        const currentTrack = this.tracks[this.currentIndex] || null;
+        const current = currentTrack ? {
+          ...currentTrack,
+          duration_ms: this.durationMs || currentTrack.duration_ms || 0
+        } : null;
+
+        window.api.updateLocalPlaybackState?.({
+          current,
+          queue: this.currentIndex >= 0 ? this.tracks.slice(this.currentIndex + 1) : [],
+          is_playing: this.isPlaying,
+          progress_ms: this.progressMs,
+          volume: this.volume
+        }).catch(() => {});
+      },
+
+      syncStateFromAudio(forcePush = false) {
+        this.durationMs = Number.isFinite(localAudio.duration) ? Math.round(localAudio.duration * 1000) : 0;
+        this.progressMs = Math.round((localAudio.currentTime || 0) * 1000);
+        this.volume = Math.round(localAudio.volume * 100);
+        this.isPlaying = !localAudio.paused && !localAudio.ended;
+        if (this.currentIndex >= 0 && this.tracks[this.currentIndex]) {
+          this.tracks[this.currentIndex].duration_ms = this.durationMs;
+          this.currentTrackPath = this.tracks[this.currentIndex].localPath;
+        }
+        this.pushPlaybackState(forcePush);
+      },
+
+      async reloadTracks() {
+        const nextSource = await window.api.getActiveLocalAudioSource?.().catch(() => null);
+        const tracks = nextSource
+          ? await window.api.getLocalAudioLibrary(nextSource).catch(() => [])
+          : [];
+        const currentPath = this.currentTrackPath;
+        const preferredPath = nextSource?.type === 'file' ? nextSource.path : currentPath;
+        this.activeSource = nextSource;
+        this.tracks = Array.isArray(tracks) ? tracks : [];
+
+        if (!this.activeSource || !this.tracks.length) {
+          this.currentIndex = -1;
+          this.currentTrackPath = null;
+          localAudio.removeAttribute('src');
+          localAudio.load();
+          this.syncStateFromAudio(true);
+          return;
+        }
+
+        const nextIndex = preferredPath ? this.tracks.findIndex(track => track.localPath === preferredPath) : -1;
+        this.currentIndex = nextIndex >= 0 ? nextIndex : Math.min(this.currentIndex >= 0 ? this.currentIndex : 0, this.tracks.length - 1);
+        this.currentTrackPath = this.tracks[this.currentIndex]?.localPath || null;
+      },
+
+      async prepare() {
+        await this.reloadTracks();
+        this.syncStateFromAudio(true);
+
+        if (!this.activeSource) {
+          return { ready: false, ...this.noPlaybackState };
+        }
+
+        if (!this.tracks.length) {
+          return { ready: false, ...this.noTracksState };
+        }
+
+        if (this.currentIndex < 0) {
+          this.currentIndex = 0;
+        }
+
+        const currentTrack = this.tracks[this.currentIndex];
+        if (currentTrack && currentTrack.localUrl !== localAudio.src) {
+          this.loadTrack(this.currentIndex, false);
+        }
+
+        this.volume = Math.round(localAudio.volume * 100);
+        this.pushPlaybackState(true);
+        return { ready: true };
+      },
+
+      async startPlayback() {
+        if (!this.tracks.length) {
+          return false;
+        }
+
+        if (this.currentIndex < 0) {
+          this.loadTrack(0, false);
+        }
+
+        if (localAudio.paused) {
+          await localAudio.play();
+        }
+
+        this.syncStateFromAudio(true);
+        return true;
+      },
+
+      async playTrackByPath(localPath) {
+        if (!localPath) {
+          return false;
+        }
+
+        await this.reloadTracks();
+        const nextIndex = this.tracks.findIndex(track => track.localPath === localPath);
+        if (nextIndex < 0) {
+          return false;
+        }
+
+        this.loadTrack(nextIndex, true);
+        this.syncStateFromAudio(true);
+        return true;
+      },
+
+      loadTrack(index, autoplay) {
+        const track = this.tracks[index];
+        if (!track) {
+          return false;
+        }
+
+        this.currentIndex = index;
+        this.currentTrackPath = track.localPath;
+        localAudio.src = track.localUrl;
+        localAudio.load();
+        this.syncStateFromAudio(true);
+
+        if (autoplay) {
+          localAudio.play().catch(err => {
+            window.api.rendererLog?.('error', `Local playback failed: ${err.message}`);
+          });
+        }
+
+        return true;
+      },
+
+      async getCurrent() {
+        this.syncStateFromAudio();
+        const track = this.tracks[this.currentIndex];
+        if (!track) {
+          return null;
+        }
+
+        return {
+          item: {
+            ...track,
+            duration_ms: this.durationMs || track.duration_ms || 0
+          },
+          is_playing: this.isPlaying,
+          progress_ms: this.progressMs
+        };
+      },
+
+      async getQueue() {
+        if (this.currentIndex < 0) {
+          return { queue: [] };
+        }
+        return { queue: this.tracks.slice(this.currentIndex + 1) };
+      },
+
+      async playPause() {
+        if (!this.tracks.length) {
+          return false;
+        }
+
+        if (this.currentIndex < 0) {
+          this.loadTrack(0, false);
+        }
+
+        if (localAudio.paused) {
+          await localAudio.play();
+        } else {
+          localAudio.pause();
+        }
+
+        this.syncStateFromAudio(true);
+        return this.isPlaying;
+      },
+
+      async next(autoplay = true) {
+        if (!this.tracks.length) {
+          return null;
+        }
+
+        if (this.currentIndex + 1 < this.tracks.length) {
+          this.loadTrack(this.currentIndex + 1, autoplay);
+        } else {
+          localAudio.pause();
+          localAudio.currentTime = 0;
+          this.syncStateFromAudio(true);
+        }
+
+        return this.getCurrent();
+      },
+
+      async prev() {
+        if (!this.tracks.length) {
+          return null;
+        }
+
+        if ((localAudio.currentTime || 0) > 3) {
+          localAudio.currentTime = 0;
+          this.syncStateFromAudio(true);
+          return this.getCurrent();
+        }
+
+        if (this.currentIndex > 0) {
+          this.loadTrack(this.currentIndex - 1, true);
+        } else {
+          localAudio.currentTime = 0;
+          this.syncStateFromAudio(true);
+        }
+
+        return this.getCurrent();
+      },
+
+      async seek(ms) {
+        if (!this.tracks.length) {
+          return 0;
+        }
+        localAudio.currentTime = Math.max(0, ms) / 1000;
+        this.syncStateFromAudio(true);
+        return this.progressMs;
+      },
+
+      async getVolume() {
+        this.syncStateFromAudio();
+        return this.volume;
+      },
+
+      async setVolume(pct) {
+        const normalized = Math.max(0, Math.min(100, Math.round(pct)));
+        localAudio.volume = normalized / 100;
+        this.syncStateFromAudio(true);
+        return this.volume;
+      },
+
+      start() {
+        this.syncStateFromAudio(true);
+      },
+
+      stop() {
+        localAudio.pause();
+        this.syncStateFromAudio(true);
+      }
+    };
+
+    const spotifyProvider = {
+      key: 'spotify',
+      requiresLogin: true,
+      supportsQueueWindow: true,
+      usesPolling: true,
+      emptyState: {
+        title: 'Disconnected',
+        artist: 'Connect to your Spotify'
+      },
+      noPlaybackState: {
+        title: 'No music playing on Spotify',
+        artist: 'Play a track on any device'
+      },
+
+      async prepare() {
+        const authed = await window.api.isAuthed();
+        return authed ? { ready: true } : { ready: false, ...this.emptyState };
+      },
+
+      async getCurrent() {
+        return window.api.getCurrent();
+      },
+
+      async getQueue() {
+        return window.api.getQueue();
+      },
+
+      async playPause() {
+        return window.api.playPause();
+      },
+
+      async next() {
+        return window.api.next();
+      },
+
+      async prev() {
+        return window.api.prev();
+      },
+
+      async seek(ms) {
+        return window.api.seek(ms);
+      },
+
+      async getVolume() {
+        return window.api.getVolume();
+      },
+
+      async setVolume(pct) {
+        return window.api.setVolume(pct);
+      },
+
+      start() {
+        startPolling();
+      },
+
+      stop() {
+        stopPolling();
+      }
+    };
 
     function setControlsEnabled(on) {
       [btnPrev, btnPlay, btnNext, volBtn].forEach(b => b.disabled = !on);
+      btnQueue.disabled = !on || !activeProvider?.supportsQueueWindow;
       window.api.rendererLog?.('ui', `Controls ${on ? 'enabled' : 'disabled'}`);
     }
     function setControlsVisible(visible) {
       [btnPrev, btnPlay, btnNext, volBtn].forEach(b => b.style.display = visible ? 'inline-block' : 'none');
-      btnQueue.style.display = visible ? 'inline-block' : 'none';
+      btnQueue.style.display = visible && activeProvider?.supportsQueueWindow ? 'inline-block' : 'none';
+      btnLocal.style.display = activeSourceMode === 'local' ? 'inline-block' : 'none';
       moreBtn.style.display = 'inline-block'; // Always show more button
       window.api.rendererLog?.('ui', `Controls ${visible ? 'visible' : 'hidden'}`);
+    }
+    function setTrackInfoVisible(visible) {
+      const display = visible ? '' : 'none';
+      artFrame.style.display = display;
+      metaEl.style.display = display;
+      progressEl.style.display = display;
     }
     function setMenuOptionsVisible(visible) {
       accountBtn.style.display = visible ? 'block' : 'none';
@@ -551,7 +936,7 @@
     }
     function showLogin(show) { btnLogin.style.display = show ? 'inline-block' : 'none'; }
     function setPlayIcon() {
-      btnPlay.style.setProperty('--icon', `url('./assets/${isPlaying ? 'PauseButton' : 'PlayButton'}.png')`);
+      btnPlay.style.setProperty('--icon', `url('../assets/${isPlaying ? 'PauseButton' : 'PlayButton'}.png')`);
     }
 
     // ---------- Progress ----------
@@ -581,24 +966,82 @@
       vFill.style.width = pct + '%';
       vPct.textContent = pct + '%';
       const icon = pct === 0 ? 'VolumeZero' : 'VolumeButton';
-      vIcon.style.setProperty('--icon', `url('./assets/${icon}.png')`);
-      muteBtn.style.setProperty('--icon', `url('./assets/${icon}.png')`);
-      volBtn.style.setProperty('--icon', `url('./assets/${icon}.png')`);
+      vIcon.style.setProperty('--icon', `url('../assets/${icon}.png')`);
+      muteBtn.style.setProperty('--icon', `url('../assets/${icon}.png')`);
+      volBtn.style.setProperty('--icon', `url('../assets/${icon}.png')`);
+    }
+
+    function clearArtwork() {
+      if (art) {
+        art.style.backgroundImage = 'url("../assets/MusicNote.png")';
+        art.classList.remove('has-art');
+        art.classList.add('no-art');
+      }
+    }
+
+    function resetPlayerState(title, artist) {
+      titleEl.textContent = title;
+      artistEl.textContent = artist;
+      clearArtwork();
+      isPlaying = false;
+      currentDuration = 0;
+      currentProgress = 0;
+      setPlayIcon();
+      renderProgress();
+      nextSongMsg.classList.remove('show');
+    }
+
+    function updateMoreMenuForProvider(isReady) {
+      const showSpotifyActions = activeProvider?.key === 'spotify' && isReady;
+      setMenuOptionsVisible(showSpotifyActions);
+    }
+
+    function applyCurrentTrackData(data) {
+      const track = data?.item;
+      if (!track) {
+        resetPlayerState(activeProvider?.noPlaybackState?.title || 'Nothing playing', activeProvider?.noPlaybackState?.artist || 'Select a track');
+        return;
+      }
+
+      titleEl.textContent = track.name;
+      artistEl.textContent = (track.artists || []).map(artist => artist.name).join(', ') || 'Unknown';
+
+      const img = track.album?.images?.[1]?.url || track.album?.images?.[0]?.url || '';
+      if (img) {
+        art.style.backgroundImage = `url("${img}")`;
+        art.classList.add('has-art');
+        art.classList.remove('no-art');
+      } else {
+        clearArtwork();
+      }
+
+      isPlaying = !!data.is_playing;
+      currentDuration = track.duration_ms || 0;
+      currentProgress = data.progress_ms || 0;
+      setPlayIcon();
+      renderProgress();
+    }
+
+    function getProviderForMode(mode) {
+      return mode === 'local' ? localProvider : spotifyProvider;
     }
 
     function openVolPop() {
       isVolPopOpen = true;
       // Close queue and more windows when volume popup opens
       if (isQueueOpen) window.api.toggleQueue().catch(()=>{});
+      if (isLocalOpen) window.api.toggleLocal().catch(()=>{});
       if (isMoreOpen) window.api.toggleMore().catch(()=>{});
       volPop.style.display = 'flex';
-      window.api.getVolume().then(v => {
-        if (typeof v === 'number') {
-          volume = v;
-          if (volume > 0) lastNonZeroVol = volume;
-          renderVolume();
-        }
-      }).catch(()=>{});
+      if (activeProvider) {
+        activeProvider.getVolume().then(v => {
+          if (typeof v === 'number') {
+            volume = v;
+            if (volume > 0) lastNonZeroVol = volume;
+            renderVolume();
+          }
+        }).catch(()=>{});
+      }
       // outside click closes
       setTimeout(() => {
         const onDocClick = (e) => {
@@ -624,7 +1067,7 @@
       e.stopPropagation();
       const target = volume > 0 ? 0 : (lastNonZeroVol || 50);
       try {
-        await window.api.setVolume(target);
+        await activeProvider?.setVolume(target);
         volume = target;
         if (volume > 0) lastNonZeroVol = volume;
         renderVolume();
@@ -638,7 +1081,7 @@
     }
     let draggingVol = false;
     const commitVol = async (p) => {
-      try { await window.api.setVolume(p); }
+      try { await activeProvider?.setVolume(p); }
       catch (err) { console.error('setVolume failed', err); }
     };
     vBar.addEventListener('mousedown', (e) => {
@@ -662,66 +1105,38 @@
     // ---------- Data refresh ----------
     async function refresh() {
       try {
-        // Check if still authenticated before making API calls
-        const isAuthed = await window.api.isAuthed();
-        if (!isAuthed) {
-          window.api.rendererLog?.('refresh', 'refresh called but not authenticated - stopping polling');
-          stopPolling();
+        if (!activeProvider) {
           return;
         }
 
-        const data = await window.api.getCurrent();
+        const data = await activeProvider.getCurrent();
 
         if (!data || !data.item) {
-          // No track data - could be no playback OR private session
-          const isNowInPrivateSession = !wasInApparentPrivateSession; // currently returning nothing
-          if (wasInApparentPrivateSession === false && isNowInPrivateSession === true) {
-            // Just entered private session
-            window.api.rendererLog?.('privacy', 'Private session detected - no track data returned');
+          if (activeProvider.key === 'spotify') {
+            const isNowInPrivateSession = !wasInApparentPrivateSession;
+            if (wasInApparentPrivateSession === false && isNowInPrivateSession === true) {
+              window.api.rendererLog?.('privacy', 'Private session detected - no track data returned');
+            }
+            wasInApparentPrivateSession = true;
           }
-          wasInApparentPrivateSession = true;
 
-          titleEl.textContent  = 'No music playing on Spotify';
-          artistEl.textContent = 'Play a track on any device';
-          isPlaying = false; setPlayIcon();
-          if (art) art.style.backgroundImage = '';
-          currentDuration = 0; currentProgress = 0; renderProgress();
-          nextSongMsg.classList.remove('show');
+          resetPlayerState(activeProvider.noPlaybackState.title, activeProvider.noPlaybackState.artist);
           return;
         }
 
-        // Got track data - we successfully exited private session (if we were in it)
-        if (wasInApparentPrivateSession === true) {
+        if (activeProvider.key === 'spotify' && wasInApparentPrivateSession === true) {
           window.api.rendererLog?.('privacy', 'Private session disabled - track data now visible');
           wasInApparentPrivateSession = false;
-          // Re-enable controls when exiting private session
           setControlsEnabled(true);
           window.api.rendererLog?.('ui', 'Controls re-enabled after exiting private session');
         }
 
-        const t = data.item;
-        titleEl.textContent  = t.name;
-        artistEl.textContent = t.artists.map(a => a.name).join(', ');
+        applyCurrentTrackData(data);
 
-        const img = t.album?.images?.[1]?.url || t.album?.images?.[0]?.url || '';
-        if (art) {
-          art.style.backgroundImage = img ? `url("${img}")` : '';
-          art.classList.toggle('has-art', !!img);
-        }
-
-        isPlaying = !!data.is_playing;
-        setPlayIcon();
-
-        currentDuration = t.duration_ms || 0;
-        currentProgress = data.progress_ms || 0;
-        renderProgress();
-
-        // Check if within 10 seconds of song ending and show next song message
-        // Don't show if queue window, more window, or volume popup are open
         const timeRemaining = currentDuration - currentProgress;
-        if (timeRemaining <= 15000 && timeRemaining > 0 && isPlaying && !isQueueOpen && !isMoreOpen && !isVolPopOpen) {
+        if (timeRemaining <= 15000 && timeRemaining > 0 && isPlaying && !isQueueOpen && !isLocalOpen && !isMoreOpen && !isVolPopOpen) {
           try {
-            const queue = await window.api.getQueue();
+            const queue = await activeProvider.getQueue();
             if (queue?.queue && queue.queue.length > 0) {
               const nextSong = queue.queue[0];
               nextSongTitle.textContent = nextSong.name + ' - ' + (nextSong.artists?.[0]?.name || 'Unknown');
@@ -737,8 +1152,7 @@
           nextSongMsg.classList.remove('show');
         }
 
-        // Try to sync volume (some endpoints don't include device; fall back to getVolume)
-        window.api.getVolume().then(v => {
+        activeProvider.getVolume().then(v => {
           if (typeof v === 'number') {
             volume = v;
             if (volume > 0) lastNonZeroVol = volume;
@@ -750,8 +1164,10 @@
 
     setInterval(() => {
       if (isPlaying && currentDuration > 0) {
-        currentProgress = Math.min(currentDuration, currentProgress + 250);
-        renderProgress();
+        if (activeProvider?.key === 'spotify') {
+          currentProgress = Math.min(currentDuration, currentProgress + 250);
+          renderProgress();
+        }
 
         // Check if we just entered the 10-second window
         const timeRemaining = currentDuration - currentProgress;
@@ -775,7 +1191,7 @@
       const pct = Math.max(0, Math.min(1, x / rect.width));
       const ms = Math.round(pct * currentDuration);
       try {
-        await window.api.seek(ms);
+        await activeProvider?.seek(ms);
         currentProgress = ms;
         renderProgress();
         setTimeout(refresh, 300);
@@ -810,59 +1226,130 @@
       }
     }
 
-    async function checkAuthAndInit() {
-      const authed = await window.api.isAuthed();
-      window.api.rendererLog?.('auth', `checkAuthAndInit: authed=${authed}`);
-      setControlsEnabled(authed);
-      setControlsVisible(authed);
-      setMenuOptionsVisible(authed);
-      showLogin(!authed);
-      if (authed) {
-        window.api.rendererLog?.('auth', 'Auth successful - starting polling and refresh');
-        startPolling();
+    async function initializeActiveProvider() {
+      if (!activeProvider) {
+        return;
+      }
+
+      stopPolling();
+
+      const state = await activeProvider.prepare();
+      const isReady = !!state.ready;
+      const controlsVisible = !activeProvider.requiresLogin || isReady;
+      const trackInfoVisible = true;
+
+      setControlsVisible(controlsVisible);
+      setTrackInfoVisible(trackInfoVisible);
+      setControlsEnabled(isReady);
+      showLogin(activeProvider.requiresLogin && !isReady);
+      updateMoreMenuForProvider(isReady);
+
+      if (isReady) {
+        activeProvider.start?.();
         refresh();
+        return;
       }
-      else {
-        window.api.rendererLog?.('auth', 'Not authenticated - stopping polling');
-        stopPolling();
-        // Clear UI when logged out
-        titleEl.textContent = 'Disconnected';
-        artistEl.textContent = 'Connect to your Spotify';
-        if (art) art.style.backgroundImage = '';
-        isPlaying = false;
-        setPlayIcon();
-        currentDuration = 0;
-        currentProgress = 0;
-        renderProgress();
-        nextSongMsg.classList.remove('show');
-      }
+
+      resetPlayerState(state.title, state.artist);
+      volume = activeProvider.key === 'local' ? localProvider.volume : 0;
+      renderVolume();
     }
 
-    btnLogin.onclick = async () => { await window.api.login(); setTimeout(checkAuthAndInit, 900); };
+    async function switchProvider(mode) {
+      const previousProvider = activeProvider;
+      previousProvider?.stop?.();
+      activeSourceMode = mode;
+      activeProvider = getProviderForMode(mode);
+      wasInApparentPrivateSession = false;
+      await initializeActiveProvider();
+    }
+
+    btnLogin.onclick = async () => { await window.api.login(); setTimeout(initializeActiveProvider, 900); };
     window.api.onAuthed(() => {
       window.api.rendererLog?.('auth', 'Authenticated event received');
-      checkAuthAndInit();
+      if (activeProvider?.key === 'spotify') {
+        initializeActiveProvider();
+      }
     });
     window.api.onLoggedOut(() => {
+      if (activeProvider?.key !== 'spotify') {
+        return;
+      }
       window.api.rendererLog?.('auth', 'Logout event received - clearing UI immediately');
       clearUIOnLogout(); // Immediately clear UI
-      setTimeout(checkAuthAndInit, 200); // Then verify state
+      if (activeProvider?.key === 'spotify') {
+        setTimeout(initializeActiveProvider, 200);
+      }
+    });
+
+    window.api.onSourceModeChanged?.((_event, mode) => {
+      switchProvider(mode).catch(err => {
+        window.api.rendererLog?.('error', `Failed to switch provider: ${err.message}`);
+      });
+    });
+
+    window.api.onLocalAudioSourcesChanged?.(() => {
+      if (activeProvider?.key === 'local') {
+        initializeActiveProvider().catch(err => {
+          window.api.rendererLog?.('error', `Failed to reload local audio: ${err.message}`);
+        });
+      }
+    });
+
+    window.api.onLocalActiveSourceChanged?.((_event, payload) => {
+      if (activeProvider?.key !== 'local') {
+        return;
+      }
+
+      initializeActiveProvider().then(async () => {
+        if (payload?.autoplay) {
+          await localProvider.startPlayback().catch(err => {
+            window.api.rendererLog?.('error', `Failed to autoplay local source: ${err.message}`);
+          });
+          refresh().catch(() => {});
+        }
+      }).catch(err => {
+        window.api.rendererLog?.('error', `Failed to switch local source: ${err.message}`);
+      });
+    });
+
+    window.api.onPlayLocalTrackRequested?.((_event, payload) => {
+      if (activeProvider?.key !== 'local') {
+        return;
+      }
+
+      localProvider.playTrackByPath(payload?.localPath).then(didPlay => {
+        if (didPlay) {
+          refresh().catch(() => {});
+        }
+      }).catch(err => {
+        window.api.rendererLog?.('error', `Failed to play local track: ${err.message}`);
+      });
     });
 
     // Controls
     btnPrev.onclick = () => {
+      if (!activeProvider) {
+        return;
+      }
       window.api.rendererLog?.('control', 'Previous button clicked');
-      window.api.prev().catch(err => {
+      activeProvider.prev().then(() => refresh()).catch(err => {
         window.api.rendererLog?.('error', `Previous failed: ${err.message}`);
       });
     };
     btnNext.onclick = () => {
+      if (!activeProvider) {
+        return;
+      }
       window.api.rendererLog?.('control', 'Next button clicked');
-      window.api.next().catch(err => {
+      activeProvider.next().then(() => refresh()).catch(err => {
         window.api.rendererLog?.('error', `Next failed: ${err.message}`);
       });
     };
     btnQueue.onclick = async () => {
+      if (!activeProvider?.supportsQueueWindow) {
+        return;
+      }
       try {
         window.api.rendererLog?.('control', 'Queue button clicked');
         await window.api.toggleQueue();
@@ -870,10 +1357,21 @@
         window.api.rendererLog?.('error', `toggleQueue failed: ${err.message}`);
       }
     };
+    btnLocal.onclick = async () => {
+      try {
+        window.api.rendererLog?.('control', 'Local window button clicked');
+        await window.api.toggleLocal();
+      } catch (err) {
+        window.api.rendererLog?.('error', `toggleLocal failed: ${err.message}`);
+      }
+    };
     btnPlay.onclick = async () => {
+      if (!activeProvider) {
+        return;
+      }
       isPlaying = !isPlaying; setPlayIcon();
       window.api.rendererLog?.('control', `Play/Pause toggled: ${isPlaying ? 'playing' : 'paused'}`);
-      try { await window.api.playPause(); setTimeout(refresh, 300); }
+      try { await activeProvider.playPause(); setTimeout(refresh, 300); }
       catch (e) {
         window.api.rendererLog?.('error', `PlayPause failed: ${e.message}`);
         isPlaying = !isPlaying; setPlayIcon();
@@ -884,18 +1382,11 @@
     function clearUIOnLogout() {
       window.api.rendererLog?.('ui', 'Clearing UI on logout');
       stopPolling();
-      titleEl.textContent = 'Disconnected';
-      artistEl.textContent = 'Connect to your Spotify';
-      if (art) art.style.backgroundImage = '';
-      isPlaying = false;
-      setPlayIcon();
-      currentDuration = 0;
-      currentProgress = 0;
-      renderProgress();
-      nextSongMsg.classList.remove('show');
+      resetPlayerState('Disconnected', 'Connect to your Spotify');
       setControlsEnabled(false);
       setControlsVisible(false);
       showLogin(true);
+      updateMoreMenuForProvider(false);
       window.api.rendererLog?.('ui', 'UI cleared completely');
     }
 
@@ -944,6 +1435,15 @@
       isQueueOpen = false;
     });
 
+    window.api.onLocalOpened?.(() => {
+      isLocalOpen = true;
+      nextSongMsg.classList.remove('show');
+    });
+
+    window.api.onLocalClosed?.(() => {
+      isLocalOpen = false;
+    });
+
     // More window state listeners
     window.api.onMoreOpened(() => {
       isMoreOpen = true;
@@ -959,8 +1459,59 @@
       refresh().catch(() => {});
     });
 
+    localAudio.addEventListener('loadedmetadata', () => {
+      localProvider.syncStateFromAudio();
+      if (activeProvider?.key === 'local') {
+        refresh().catch(() => {});
+      }
+    });
+
+    localAudio.addEventListener('timeupdate', () => {
+      localProvider.syncStateFromAudio();
+      if (activeProvider?.key === 'local') {
+        currentDuration = localProvider.durationMs;
+        currentProgress = localProvider.progressMs;
+        isPlaying = localProvider.isPlaying;
+        setPlayIcon();
+        renderProgress();
+      }
+    });
+
+    localAudio.addEventListener('play', () => {
+      localProvider.syncStateFromAudio();
+      if (activeProvider?.key === 'local') {
+        isPlaying = true;
+        setPlayIcon();
+      }
+    });
+
+    localAudio.addEventListener('pause', () => {
+      localProvider.syncStateFromAudio();
+      if (activeProvider?.key === 'local') {
+        isPlaying = false;
+        setPlayIcon();
+      }
+    });
+
+    localAudio.addEventListener('volumechange', () => {
+      localProvider.syncStateFromAudio();
+      if (activeProvider?.key === 'local') {
+        volume = localProvider.volume;
+        if (volume > 0) lastNonZeroVol = volume;
+        renderVolume();
+      }
+    });
+
+    localAudio.addEventListener('ended', () => {
+      localProvider.next(true).then(() => {
+        if (activeProvider?.key === 'local') {
+          refresh().catch(() => {});
+        }
+      }).catch(() => {});
+    });
+
     setPlayIcon();
-    checkAuthAndInit();
+    window.api.getSourceMode().then(switchProvider).catch(() => switchProvider('spotify'));
 
     // Initialize theme
     initThemeVariables();

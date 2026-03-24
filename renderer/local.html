@@ -1,0 +1,1003 @@
+<!doctype html>
+<html>
+<head>
+  <meta charset="utf-8" />
+  <title>Local Audio</title>
+  <link href="https://fonts.googleapis.com/css2?family=Pixelify+Sans&display=swap" rel="stylesheet">
+  <script src="../context/themeContext.js"></script>
+  <style>
+    :root {
+      --theme-background: rgba(12, 12, 12, 0.95);
+      --theme-text-primary: #fff;
+      --theme-border-color: rgba(255, 255, 255, 0.1);
+      --theme-button-bg: rgba(255, 255, 255, 0.05);
+      --theme-button-bg-hover: rgba(255, 255, 255, 0.1);
+      --theme-button-bg-active: rgba(255, 255, 255, 0.15);
+      --theme-border-color-hover: rgba(255, 255, 255, 0.15);
+      --theme-accent-danger: rgba(255, 100, 100, 0.12);
+      --theme-accent-danger-border: rgba(255, 100, 100, 0.25);
+      --theme-accent-danger-hover: rgba(255, 100, 100, 0.22);
+      --theme-accent-active: rgba(60, 250, 255, 0.12);
+      --theme-accent-active-border: rgba(60, 250, 255, 0.25);
+      --theme-text-opacity: rgba(255, 255, 255, 0.7);
+    }
+
+    html, body {
+      margin: 0;
+      padding: 0;
+      background: transparent;
+      font-family: 'Pixelify Sans', sans-serif;
+      color: var(--theme-text-primary);
+      width: 100%;
+      height: 100%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+
+    .local-container {
+      width: 340px;
+      max-height: 430px;
+      background: var(--theme-background);
+      backdrop-filter: blur(6px);
+      border-radius: 10px;
+      border: 1px solid var(--theme-border-color);
+      display: flex;
+      flex-direction: column;
+      overflow: hidden;
+      -webkit-app-region: drag;
+    }
+
+    .local-scroll {
+      display: flex;
+      flex-direction: column;
+      gap: 12px;
+      padding: 16px;
+      overflow-y: auto;
+      scrollbar-width: thin;
+      scrollbar-color: var(--theme-border-color-hover) var(--theme-button-bg);
+      -webkit-app-region: no-drag;
+    }
+
+    .source-list,
+    .queue-list {
+      scrollbar-width: thin;
+      scrollbar-color: var(--theme-border-color-hover) var(--theme-button-bg);
+    }
+
+    .local-scroll::-webkit-scrollbar,
+    .source-list::-webkit-scrollbar,
+    .queue-list::-webkit-scrollbar {
+      width: 6px;
+    }
+
+    .local-scroll::-webkit-scrollbar-track,
+    .source-list::-webkit-scrollbar-track,
+    .queue-list::-webkit-scrollbar-track {
+      background: var(--theme-button-bg);
+      border-radius: 3px;
+    }
+
+    .local-scroll::-webkit-scrollbar-thumb,
+    .source-list::-webkit-scrollbar-thumb,
+    .queue-list::-webkit-scrollbar-thumb {
+      background: var(--theme-border-color-hover);
+      border-radius: 3px;
+    }
+
+    .local-scroll::-webkit-scrollbar-thumb:hover,
+    .source-list::-webkit-scrollbar-thumb:hover,
+    .queue-list::-webkit-scrollbar-thumb:hover {
+      background: var(--theme-button-bg-active);
+    }
+
+    .local-header,
+    .actions,
+    .actions-left,
+    .actions-right,
+    .queue-header {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+
+    .local-header,
+    .actions,
+    .queue-header {
+      justify-content: space-between;
+    }
+
+    .local-title {
+      font-size: 13px;
+      color: var(--theme-text-primary);
+    }
+
+    .btn {
+      padding: 6px 8px;
+      background: var(--theme-button-bg);
+      border: 1px solid var(--theme-border-color);
+      border-radius: 4px;
+      color: var(--theme-text-primary);
+      font-size: 10px;
+      font-family: 'Pixelify Sans', sans-serif;
+      cursor: pointer;
+      transition: background 0.2s, border-color 0.2s;
+    }
+
+    .btn:hover {
+      background: var(--theme-button-bg-hover);
+      border-color: var(--theme-border-color-hover);
+    }
+
+    .btn:active {
+      background: var(--theme-button-bg-active);
+    }
+
+    .btn.active {
+      background: var(--theme-accent-active);
+      border-color: var(--theme-accent-active-border);
+    }
+
+    .btn:disabled {
+      opacity: 0.45;
+      cursor: default;
+    }
+
+    .btn.danger {
+      background: var(--theme-accent-danger);
+      border-color: var(--theme-accent-danger-border);
+    }
+
+    .btn.danger:hover {
+      background: var(--theme-accent-danger-hover);
+      border-color: var(--theme-accent-danger-border);
+    }
+
+    .btn.icon-btn {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      width: 28px;
+      height: 28px;
+      padding: 0;
+    }
+
+    .btn.icon-btn img {
+      width: 24px;
+      height: 24px;
+      object-fit: contain;
+    }
+
+    .menu {
+      position: relative;
+    }
+
+    .menu-panel {
+      position: absolute;
+      top: calc(100% + 6px);
+      right: 0;
+      min-width: 96px;
+      display: flex;
+      flex-direction: column;
+      gap: 4px;
+      padding: 6px;
+      background: rgba(12, 12, 12, 0.98);
+      border: 1px solid var(--theme-border-color-hover);
+      border-radius: 6px;
+      box-shadow: 0 10px 24px rgba(0, 0, 0, 0.28);
+      z-index: 10;
+    }
+
+    .menu-panel .btn {
+      width: 100%;
+      text-align: left;
+    }
+
+    .filter-group {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      padding: 2px;
+      border-radius: 6px;
+      background: rgba(255, 255, 255, 0.03);
+      border: 1px solid var(--theme-border-color);
+    }
+
+    .filter-group .btn {
+      padding: 5px 8px;
+    }
+
+    .select-all {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      font-size: 10px;
+      color: var(--theme-text-opacity);
+    }
+
+    .select-all input,
+    .source-check {
+      accent-color: #ff6666;
+      cursor: pointer;
+    }
+
+    .source-list,
+    .queue-list {
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
+      overflow-y: auto;
+    }
+
+    .source-list {
+      max-height: 162px;
+    }
+
+    .queue-list {
+      max-height: 162px;
+    }
+
+    .source-row,
+    .queue-item,
+    .empty-card {
+      border-radius: 8px;
+      border: 1px solid var(--theme-border-color);
+      background: rgba(255, 255, 255, 0.03);
+      -webkit-app-region: no-drag;
+    }
+
+    .source-row {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      padding: 8px;
+      cursor: pointer;
+      transition: background 0.2s, border-color 0.2s;
+    }
+
+    .source-row:hover {
+      background: var(--theme-button-bg-hover);
+      border-color: var(--theme-border-color-hover);
+    }
+
+    .source-row.selected,
+    .source-row.active {
+      background: var(--theme-accent-active);
+      border-color: var(--theme-accent-active-border);
+    }
+
+    .source-main {
+      min-width: 0;
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+      gap: 4px;
+    }
+
+    .source-topline,
+    .queue-topline {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      min-width: 0;
+    }
+
+    .source-name,
+    .queue-name {
+      font-size: 11px;
+      color: var(--theme-text-primary);
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+
+    .source-detail,
+    .queue-detail {
+      font-size: 10px;
+      color: var(--theme-text-opacity);
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+
+    .source-badge,
+    .status-pill {
+      flex-shrink: 0;
+      padding: 2px 5px;
+      border-radius: 999px;
+      border: 1px solid var(--theme-border-color);
+      font-size: 9px;
+      color: var(--theme-text-opacity);
+      text-transform: uppercase;
+      letter-spacing: 0.04em;
+    }
+
+    .status-pill.active {
+      border-color: var(--theme-accent-active-border);
+      color: var(--theme-text-primary);
+      background: rgba(60, 250, 255, 0.08);
+    }
+
+    .source-actions {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      flex-shrink: 0;
+    }
+
+    .source-actions.hover-actions {
+      opacity: 0;
+      pointer-events: none;
+      transition: opacity 0.2s ease;
+    }
+
+    .source-row:hover .source-actions.hover-actions {
+      opacity: 1;
+      pointer-events: auto;
+    }
+
+    .queue-item {
+      padding: 8px;
+      display: flex;
+      align-items: flex-start;
+      justify-content: space-between;
+      gap: 8px;
+      cursor: pointer;
+      transition: background 0.2s, border-color 0.2s;
+    }
+
+    .queue-item:hover {
+      background: var(--theme-button-bg-hover);
+      border-color: var(--theme-border-color-hover);
+    }
+
+    .queue-item.current {
+      border-color: var(--theme-accent-active-border);
+      background: rgba(60, 250, 255, 0.1);
+    }
+
+    .queue-duration {
+      flex-shrink: 0;
+      font-size: 10px;
+      color: var(--theme-text-opacity);
+    }
+
+    .empty-card {
+      padding: 14px 12px;
+      font-size: 11px;
+      line-height: 1.45;
+      color: var(--theme-text-opacity);
+      text-align: center;
+    }
+
+    .source-list-empty {
+      min-height: 108px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      box-sizing: border-box;
+    }
+
+    .confirm-dialog {
+      display: none;
+      position: absolute;
+      top: 50%;
+      left: 50%;
+      transform: translate(-50%, -50%);
+      background: var(--theme-background);
+      border: 1px solid var(--theme-accent-danger-border);
+      border-radius: 8px;
+      padding: 16px;
+      min-width: 220px;
+      z-index: 1000;
+      box-shadow: 0 8px 32px rgba(0, 0, 0, 0.5);
+      -webkit-app-region: no-drag;
+    }
+
+    .confirm-dialog.show {
+      display: flex;
+      flex-direction: column;
+      gap: 12px;
+    }
+
+    .confirm-message {
+      font-size: 12px;
+      text-align: center;
+    }
+
+    .confirm-actions {
+      display: flex;
+      gap: 8px;
+      justify-content: center;
+    }
+
+    .confirm-actions .btn {
+      min-width: 72px;
+    }
+  </style>
+</head>
+<body>
+  <div class="local-container">
+    <div class="local-scroll" id="app"></div>
+  </div>
+
+  <div class="confirm-dialog" id="confirmDialog">
+    <div class="confirm-message" id="confirmMessage"></div>
+    <div class="confirm-actions">
+      <button class="btn" id="confirmNo">Cancel</button>
+      <button class="btn danger" id="confirmYes">Confirm</button>
+    </div>
+  </div>
+
+  <script>
+    const app = document.getElementById('app');
+    const confirmDialog = document.getElementById('confirmDialog');
+    const confirmMessage = document.getElementById('confirmMessage');
+    const confirmNo = document.getElementById('confirmNo');
+    const confirmYes = document.getElementById('confirmYes');
+
+    const state = {
+      items: [],
+      activeSource: null,
+      playbackState: null,
+      activeLibrary: [],
+      view: 'browser',
+      importFilter: 'all',
+      browseSelectedId: null,
+      editMode: false,
+      addMenuOpen: false,
+      checkedIds: new Set()
+    };
+
+    let confirmAction = null;
+
+    function getQueueListElement() {
+      return app.querySelector('.queue-list');
+    }
+
+    function getQueueScrollTop() {
+      return getQueueListElement()?.scrollTop || 0;
+    }
+
+    function restoreQueueScrollTop(scrollTop) {
+      const queueList = getQueueListElement();
+      if (queueList) {
+        queueList.scrollTop = scrollTop;
+      }
+    }
+
+    function getTrackSignature(track) {
+      return track?.localPath || `${track?.name || ''}:${track?.duration_ms || 0}`;
+    }
+
+    function getPlaybackListSignature(playbackState) {
+      const current = playbackState?.current || null;
+      const queue = Array.isArray(playbackState?.queue) ? playbackState.queue : [];
+      return [getTrackSignature(current), ...queue.map(getTrackSignature)].join('|');
+    }
+
+    function escapeHtml(value) {
+      return String(value || '').replace(/[&<>"']/g, char => ({
+        '&': '&amp;',
+        '<': '&lt;',
+        '>': '&gt;',
+        '"': '&quot;',
+        "'": '&#39;'
+      }[char]));
+    }
+
+    function getItemId(item) {
+      return `${item.type}:${item.path}`;
+    }
+
+    function sameSource(left, right) {
+      return !!left && !!right && left.type === right.type && left.path === right.path;
+    }
+
+    function formatDuration(ms) {
+      const safeMs = Number.isFinite(ms) ? Math.max(0, Math.floor(ms)) : 0;
+      const seconds = Math.floor(safeMs / 1000);
+      const minutes = Math.floor(seconds / 60);
+      return `${minutes}:${String(seconds % 60).padStart(2, '0')}`;
+    }
+
+    function getSelectedItems() {
+      return state.items.filter(item => state.checkedIds.has(getItemId(item)));
+    }
+
+    function syncSelections() {
+      const validIds = new Set(state.items.map(getItemId));
+      state.checkedIds = new Set([...state.checkedIds].filter(id => validIds.has(id)));
+      if (state.browseSelectedId && !validIds.has(state.browseSelectedId)) {
+        state.browseSelectedId = null;
+      }
+    }
+
+    function getFilteredItems() {
+      if (state.importFilter === 'file') {
+        return state.items.filter(item => item.type === 'file');
+      }
+
+      if (state.importFilter === 'folder') {
+        return state.items.filter(item => item.type === 'folder');
+      }
+
+      return state.items;
+    }
+
+    async function refreshSourceItems() {
+      const [items, activeSource] = await Promise.all([
+        window.api.getLocalSourceItems().catch(() => []),
+        window.api.getActiveLocalAudioSource().catch(() => null)
+      ]);
+
+      state.items = Array.isArray(items) ? items : [];
+      state.activeSource = activeSource || null;
+      syncSelections();
+
+      if (!state.activeSource && state.view === 'queue') {
+        state.view = 'browser';
+      }
+    }
+
+    async function refreshPlaybackState() {
+      state.playbackState = await window.api.getLocalPlaybackState().catch(() => null);
+    }
+
+    async function refreshActiveLibrary() {
+      state.activeLibrary = state.activeSource
+        ? await window.api.getLocalAudioLibrary(state.activeSource).catch(() => [])
+        : [];
+    }
+
+    async function refreshState() {
+      await Promise.all([refreshSourceItems(), refreshPlaybackState()]);
+      await refreshActiveLibrary();
+      if (state.activeSource && state.view !== 'browser') {
+        state.view = 'queue';
+      }
+      render();
+    }
+
+    function getVisibleImportCount() {
+      const renderedImportCount = app.querySelectorAll('.source-row').length;
+      if (renderedImportCount > 0) {
+        return renderedImportCount;
+      }
+
+      if (state.view === 'browser') {
+        return getFilteredItems().length;
+      }
+
+      return state.items.length;
+    }
+
+    function getVisibleQueueCount() {
+      const renderedQueueCount = app.querySelectorAll('.queue-item').length;
+      if (renderedQueueCount > 0) {
+        return renderedQueueCount;
+      }
+
+      const currentTrack = state.playbackState?.current || null;
+      const queueTracks = Array.isArray(state.playbackState?.queue) ? state.playbackState.queue : [];
+      const playbackTrackCount = [currentTrack, ...queueTracks].filter(Boolean).length;
+      return state.activeLibrary.length || playbackTrackCount;
+    }
+
+    function syncWindowLayout() {
+      const layoutState = state.view === 'queue' && state.activeSource
+        ? { view: 'queue', visibleCount: getVisibleQueueCount() }
+        : { view: 'browser', visibleCount: getVisibleImportCount() };
+
+      window.api?.setLocalWindowImportCount?.(layoutState).catch(() => {});
+    }
+
+    function showConfirm(message, action) {
+      confirmMessage.textContent = message;
+      confirmDialog.classList.add('show');
+      confirmAction = action;
+    }
+
+    function hideConfirm() {
+      confirmDialog.classList.remove('show');
+      confirmMessage.textContent = '';
+      confirmAction = null;
+    }
+
+    function renderBrowserView() {
+      const filteredItems = getFilteredItems();
+      const selectedItem = filteredItems.find(item => getItemId(item) === state.browseSelectedId) || null;
+      const checkedCount = state.checkedIds.size;
+      const visibleCheckedCount = filteredItems.filter(item => state.checkedIds.has(getItemId(item))).length;
+      const allChecked = filteredItems.length > 0 && visibleCheckedCount === filteredItems.length;
+      const someChecked = visibleCheckedCount > 0 && visibleCheckedCount < filteredItems.length;
+
+      const emptyMessage = state.items.length
+        ? 'No imports match this filter. Add files or folders, or switch filters.'
+        : 'No imports yet. Add files or folders here, then choose one to build the local queue.';
+
+      const listMarkup = filteredItems.length
+        ? filteredItems.map(item => {
+            const itemId = getItemId(item);
+            const isChecked = state.checkedIds.has(itemId);
+            const isActive = sameSource(item, state.activeSource);
+            const actionMarkup = state.editMode
+              ? `
+                <button class="btn danger icon-btn" data-action="delete-one" data-item-id="${escapeHtml(itemId)}" ${isChecked ? '' : 'disabled'}>
+                  <img src="../assets/TrashIcon.png" alt="Delete" />
+                </button>
+              `
+              : item.type === 'folder'
+                ? `<div class="source-actions hover-actions"><button class="btn" data-action="use-source" data-item-id="${escapeHtml(itemId)}">${isActive ? 'Open' : 'Use'}</button></div>`
+                : isActive
+                  ? '<div class="status-pill active">Active</div>'
+                  : '';
+
+            return `
+              <div class="source-row ${isActive ? 'active' : ''}" data-row-id="${escapeHtml(itemId)}" data-item-type="${escapeHtml(item.type)}">
+                ${state.editMode ? `<input class="source-check" type="checkbox" data-item-id="${escapeHtml(itemId)}" ${isChecked ? 'checked' : ''} />` : ''}
+                <div class="source-main">
+                  <div class="source-topline">
+                    <div class="source-name">${escapeHtml(item.name)}</div>
+                    <div class="source-badge">${escapeHtml(item.type)}</div>
+                  </div>
+                  <div class="source-detail">${escapeHtml(item.detail)}</div>
+                </div>
+                ${state.editMode ? `<div class="source-actions">${actionMarkup}</div>` : actionMarkup}
+              </div>
+            `;
+          }).join('')
+        : `<div class="empty-card source-list-empty">${emptyMessage}</div>`;
+
+      app.innerHTML = `
+        <div class="local-header">
+          <div class="local-title">Local Audio</div>
+        </div>
+        <div class="actions">
+          <div class="actions-left">
+            <div class="filter-group">
+              <button class="btn ${state.importFilter === 'all' ? 'active' : ''}" data-action="set-filter" data-filter="all">All</button>
+              <button class="btn ${state.importFilter === 'file' ? 'active' : ''}" data-action="set-filter" data-filter="file">Files</button>
+              <button class="btn ${state.importFilter === 'folder' ? 'active' : ''}" data-action="set-filter" data-filter="folder">Folder</button>
+            </div>
+          </div>
+          <div class="actions-right">
+            ${state.editMode ? `
+              <label class="select-all">
+                <input id="selectAllInput" type="checkbox" ${allChecked ? 'checked' : ''} />
+                Select All
+              </label>
+            ` : ''}
+            <button class="btn" data-action="toggle-edit">${state.editMode ? 'Cancel' : 'Edit'}</button>
+            ${state.editMode ? `<button class="btn danger" data-action="delete-selected" ${checkedCount ? '' : 'disabled'}>Delete</button>` : `
+              <div class="menu">
+                <button class="btn ${state.addMenuOpen ? 'active' : ''}" data-action="toggle-add-menu">Add</button>
+                ${state.addMenuOpen ? `
+                  <div class="menu-panel">
+                    <button class="btn" data-action="import-files">Files</button>
+                    <button class="btn" data-action="import-folder">Folder</button>
+                  </div>
+                ` : ''}
+              </div>
+            `}
+          </div>
+        </div>
+        <div class="source-list">${listMarkup}</div>
+      `;
+
+      const selectAllInput = document.getElementById('selectAllInput');
+      if (selectAllInput) {
+        selectAllInput.indeterminate = someChecked;
+      }
+    }
+
+    function renderQueueView() {
+      const activeName = state.activeSource?.name || state.activeSource?.path || 'Selected source';
+      const currentTrack = state.playbackState?.current || null;
+      const queueTracks = Array.isArray(state.playbackState?.queue) ? state.playbackState.queue : [];
+      const playbackTracks = [currentTrack, ...queueTracks].filter(Boolean);
+      const playbackTracksByPath = new Map(
+        playbackTracks
+          .filter(track => track?.localPath)
+          .map(track => [track.localPath, track])
+      );
+      const tracks = state.activeLibrary.length
+        ? state.activeLibrary.map(track => {
+            const playbackTrack = playbackTracksByPath.get(track.localPath);
+            if (!playbackTrack) {
+              return track;
+            }
+
+            return {
+              ...track,
+              ...playbackTrack,
+              duration_ms: playbackTrack.duration_ms || track.duration_ms || 0
+            };
+          })
+        : playbackTracks;
+      const currentTrackPath = currentTrack?.localPath || null;
+
+      const queueMarkup = tracks.length
+        ? tracks.map(track => `
+            <div class="queue-item ${track.localPath && track.localPath === currentTrackPath ? 'current' : ''}" data-action="play-track" data-track-path="${encodeURIComponent(track.localPath || '')}">
+              <div class="source-main">
+                <div class="queue-topline">
+                  <div class="queue-name">${escapeHtml(track.name || 'Unknown Track')}</div>
+                  ${track.localPath && track.localPath === currentTrackPath ? '<div class="status-pill active">Now</div>' : ''}
+                </div>
+                <div class="queue-detail">${escapeHtml(track.artists?.[0]?.name || 'Local File')}</div>
+              </div>
+              <div class="queue-duration">${formatDuration(track.duration_ms || 0)}</div>
+            </div>
+          `).join('')
+        : '<div class="empty-card">Waiting for the selected import to build its queue.</div>';
+
+      app.innerHTML = `
+        <div class="queue-header">
+          <button class="btn" data-action="back-to-browser">Back</button>
+        </div>
+        <div class="queue-list">${queueMarkup}</div>
+      `;
+    }
+
+    function render() {
+      if (state.view === 'queue' && state.activeSource) {
+        renderQueueView();
+        syncWindowLayout();
+        return;
+      }
+
+      renderBrowserView();
+      syncWindowLayout();
+    }
+
+    async function importFiles() {
+      try {
+        state.addMenuOpen = false;
+        await window.api.pickAudioFiles();
+        await refreshState();
+      } catch (err) {
+        console.error('Failed to import audio files:', err);
+      }
+    }
+
+    async function importFolder() {
+      try {
+        state.addMenuOpen = false;
+        await window.api.pickAudioFolder();
+        await refreshState();
+      } catch (err) {
+        console.error('Failed to import audio folder:', err);
+      }
+    }
+
+    async function useSource(itemId) {
+      const item = state.items.find(entry => getItemId(entry) === itemId);
+      if (!item) {
+        return;
+      }
+
+      if (sameSource(item, state.activeSource)) {
+        state.browseSelectedId = itemId;
+        state.view = 'queue';
+        await Promise.all([refreshPlaybackState(), refreshActiveLibrary()]);
+        render();
+        return;
+      }
+
+      try {
+        await window.api.setActiveLocalAudioSource(item, { autoplay: true });
+        state.activeSource = item;
+        state.browseSelectedId = itemId;
+        state.view = 'queue';
+        await Promise.all([refreshPlaybackState(), refreshActiveLibrary()]);
+        render();
+      } catch (err) {
+        console.error('Failed to activate local source:', err);
+      }
+    }
+
+    async function removeSources(itemsToRemove) {
+      if (!itemsToRemove.length) {
+        return;
+      }
+
+      try {
+        const result = await window.api.removeLocalAudioSources(itemsToRemove);
+        state.activeSource = result?.activeSource || null;
+        state.checkedIds = new Set();
+        state.browseSelectedId = null;
+        if (!state.activeSource) {
+          state.view = 'browser';
+        }
+        await refreshState();
+      } catch (err) {
+        console.error('Failed to remove local sources:', err);
+        confirmMessage.textContent = `Error: ${err.message}`;
+      }
+    }
+
+    function confirmDelete(itemsToRemove) {
+      const label = itemsToRemove.length === 1
+        ? `Delete ${itemsToRemove[0].name}?`
+        : `Delete ${itemsToRemove.length} selected imports?`;
+
+      showConfirm(label, async () => {
+        await removeSources(itemsToRemove);
+        hideConfirm();
+      });
+    }
+
+    app.addEventListener('change', (event) => {
+      const target = event.target;
+
+      if (target.id === 'selectAllInput') {
+        if (target.checked) {
+          state.checkedIds = new Set(getFilteredItems().map(getItemId));
+        } else {
+          const visibleIds = new Set(getFilteredItems().map(getItemId));
+          state.checkedIds = new Set([...state.checkedIds].filter(id => !visibleIds.has(id)));
+        }
+        render();
+        return;
+      }
+
+      if (target.matches('.source-check')) {
+        const itemId = target.dataset.itemId;
+        if (target.checked) {
+          state.checkedIds.add(itemId);
+        } else {
+          state.checkedIds.delete(itemId);
+        }
+        render();
+      }
+    });
+
+    app.addEventListener('click', async (event) => {
+      const actionTarget = event.target.closest('[data-action]');
+      if (actionTarget) {
+        const { action, itemId, filter } = actionTarget.dataset;
+
+        if (action !== 'toggle-add-menu') {
+          state.addMenuOpen = false;
+        }
+
+        if (action === 'toggle-add-menu') {
+          state.addMenuOpen = !state.addMenuOpen;
+          render();
+          return;
+        }
+
+        if (action === 'import-files') {
+          await importFiles();
+          return;
+        }
+
+        if (action === 'import-folder') {
+          await importFolder();
+          return;
+        }
+
+        if (action === 'toggle-edit') {
+          state.editMode = !state.editMode;
+          state.checkedIds = new Set();
+          state.browseSelectedId = null;
+          state.addMenuOpen = false;
+          render();
+          return;
+        }
+
+        if (action === 'set-filter' && filter) {
+          state.importFilter = filter;
+          state.checkedIds = new Set();
+          state.addMenuOpen = false;
+          render();
+          return;
+        }
+
+        if (action === 'delete-selected') {
+          confirmDelete(getSelectedItems());
+          return;
+        }
+
+        if (action === 'delete-one') {
+          const item = state.items.find(entry => getItemId(entry) === itemId);
+          if (item) {
+            confirmDelete([item]);
+          }
+          return;
+        }
+
+        if (action === 'use-source') {
+          await useSource(itemId);
+          return;
+        }
+
+        if (action === 'back-to-browser') {
+          state.view = 'browser';
+          render();
+          return;
+        }
+
+        if (action === 'play-track') {
+          const localPath = decodeURIComponent(actionTarget.dataset.trackPath || '');
+          if (localPath) {
+            await window.api.playLocalTrack(localPath);
+          }
+          return;
+        }
+
+        return;
+      }
+
+      if (state.addMenuOpen && !event.target.closest('.menu')) {
+        state.addMenuOpen = false;
+        render();
+        return;
+      }
+
+      const row = event.target.closest('[data-row-id]');
+      if (!row || state.editMode) {
+        return;
+      }
+
+      const itemType = row.dataset.itemType;
+      if (itemType === 'file') {
+        await useSource(row.dataset.rowId);
+        return;
+      }
+    });
+
+    confirmYes.addEventListener('click', () => {
+      if (confirmAction) {
+        confirmAction();
+      }
+    });
+
+    confirmNo.addEventListener('click', hideConfirm);
+
+    if (window.api && window.api.onLocalAudioSourcesChanged) {
+      window.api.onLocalAudioSourcesChanged(async () => {
+        await refreshSourceItems();
+        render();
+      });
+    }
+
+    if (window.api && window.api.onLocalActiveSourceChanged) {
+      window.api.onLocalActiveSourceChanged(async (_e, payload) => {
+        state.activeSource = payload?.source || null;
+        state.editMode = false;
+        state.checkedIds = new Set();
+        state.browseSelectedId = state.activeSource ? getItemId(state.activeSource) : null;
+        state.view = state.activeSource ? 'queue' : 'browser';
+        await Promise.all([refreshPlaybackState(), refreshActiveLibrary()]);
+        render();
+      });
+    }
+
+    if (window.api && window.api.onLocalPlaybackStateChanged) {
+      window.api.onLocalPlaybackStateChanged((_e, playbackState) => {
+        const previousSignature = getPlaybackListSignature(state.playbackState);
+        const nextSignature = getPlaybackListSignature(playbackState);
+        const previousScrollTop = state.view === 'queue' ? getQueueScrollTop() : 0;
+        state.playbackState = playbackState;
+
+        if (state.view === 'queue' && previousSignature !== nextSignature) {
+          render();
+          restoreQueueScrollTop(previousScrollTop);
+        }
+      });
+    }
+
+    if (document.readyState === 'loading') {
+      document.addEventListener('DOMContentLoaded', refreshState);
+    } else {
+      refreshState();
+    }
+
+    initThemeVariables();
+    loadInitialTheme();
+    setupThemeListener();
+  </script>
+</body>
+</html>
