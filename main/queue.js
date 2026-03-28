@@ -22,9 +22,9 @@ module.exports = function registerQueueWindow({
     if (safeSongCount <= 1) {
       return {
         width: 304,
-        height: 45,
+        height: 75,
         queueWidth: 70,
-        queueHeight: 10
+        queueHeight: 40
       };
     }
 

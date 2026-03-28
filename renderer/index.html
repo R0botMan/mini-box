@@ -41,7 +41,7 @@
 
     .next-song-message {
       position: absolute;
-      bottom: 140px;
+      bottom: 150px;
       left: 0;
       right: 0;
       display: none;
@@ -52,19 +52,36 @@
       padding: 8px 12px;
       border-radius: 6px;
       font-size: 11px;
-      max-width: 340px;
+      max-width: 335px;
       margin: 0 auto 8px;
-      box-shadow: 0 6px 20px rgba(0,0,0,.35);
       animation: slideUp 0.3s ease-out;
       -webkit-app-region: no-drag;
       pointer-events: none;
       z-index: 20;
-      white-space: nowrap;
       overflow: hidden;
-      text-overflow: ellipsis;
     }
     .next-song-message.show {
       display: flex;
+    }
+    .next-song-message .marquee {
+      width: 100%;
+      overflow: hidden;
+      white-space: nowrap;
+    }
+    .next-song-message .marquee-track {
+      display: inline-flex;
+      align-items: center;
+      gap: 24px;
+      min-width: max-content;
+      transform: translateX(0);
+    }
+    .next-song-message .marquee-item {
+      display: inline-flex;
+      align-items: center;
+      flex: 0 0 auto;
+    }
+    .next-song-message.marquee-active .marquee-track {
+      animation: nextSongMarquee var(--next-song-marquee-duration, 12s) linear infinite;
     }
     @keyframes slideUp {
       from {
@@ -74,6 +91,14 @@
       to {
         opacity: 1;
         transform: translateY(0);
+      }
+    }
+    @keyframes nextSongMarquee {
+      0% {
+        transform: translateX(0);
+      }
+      100% {
+        transform: translateX(calc(-1 * var(--next-song-scroll-distance, 0px)));
       }
     }
 
@@ -455,7 +480,11 @@
 </head>
 <body>
   <div class="next-song-message" id="nextSongMsg">
-    <span>Next: <strong id="nextSongTitle">Loading...</strong></span>
+    <div class="marquee" id="nextSongMarquee">
+      <div class="marquee-track" id="nextSongMarqueeTrack">
+        <span class="marquee-item" id="nextSongBaseItem">Next: <strong id="nextSongTitle">Loading...</strong></span>
+      </div>
+    </div>
   </div>
   <div class="box">
     <div class="art-frame"><div class="art" id="art"></div></div>
@@ -551,6 +580,9 @@
 
     // Next song message refs
     const nextSongMsg = document.getElementById('nextSongMsg');
+    const nextSongMarquee = document.getElementById('nextSongMarquee');
+    const nextSongMarqueeTrack = document.getElementById('nextSongMarqueeTrack');
+    const nextSongBaseItem = document.getElementById('nextSongBaseItem');
     const nextSongTitle = document.getElementById('nextSongTitle');
 
     // Volume refs
@@ -571,6 +603,11 @@
     let activeSourceMode = 'spotify';
     let activeProvider = null;
     let wasInApparentPrivateSession = false; // Track private session state transitions
+    let nextSongMarqueeFrame = null;
+
+    const NEXT_SONG_MARQUEE_GAP = 24;
+    const NEXT_SONG_MARQUEE_MAX_DUPLICATES = 5;
+    const NEXT_SONG_MARQUEE_SPEED = 28;
 
     const localAudio = new Audio();
     localAudio.preload = 'metadata';
@@ -971,6 +1008,99 @@
       volBtn.style.setProperty('--icon', `url('../assets/${icon}.png')`);
     }
 
+    function cancelNextSongMarqueeFrame() {
+      if (nextSongMarqueeFrame) {
+        cancelAnimationFrame(nextSongMarqueeFrame);
+        nextSongMarqueeFrame = null;
+      }
+    }
+
+    function clearNextSongMarqueeClones() {
+      nextSongMarqueeTrack.querySelectorAll('.marquee-copy').forEach(node => node.remove());
+    }
+
+    function buildNextSongMarqueeClones() {
+      clearNextSongMarqueeClones();
+
+      const visibleWidth = nextSongMarquee.clientWidth;
+      const baseWidth = nextSongBaseItem.scrollWidth;
+
+      if (!visibleWidth || !baseWidth) {
+        return 0;
+      }
+
+      const clonesNeeded = Math.min(
+        NEXT_SONG_MARQUEE_MAX_DUPLICATES,
+        Math.max(1, Math.ceil((visibleWidth + baseWidth) / baseWidth))
+      );
+
+      for (let index = 0; index < clonesNeeded; index += 1) {
+        const clone = nextSongBaseItem.cloneNode(true);
+        clone.removeAttribute('id');
+        clone.classList.add('marquee-copy');
+
+        const cloneTitle = clone.querySelector('strong');
+        if (cloneTitle) {
+          cloneTitle.removeAttribute('id');
+        }
+
+        clone.setAttribute('aria-hidden', 'true');
+        nextSongMarqueeTrack.appendChild(clone);
+      }
+
+      return clonesNeeded;
+    }
+
+    function syncNextSongMarquee() {
+      cancelNextSongMarqueeFrame();
+
+      if (!nextSongMsg.classList.contains('show')) {
+        return;
+      }
+
+      const visibleWidth = nextSongMarquee.clientWidth;
+      const textWidth = nextSongBaseItem.scrollWidth || 0;
+      const cloneCount = buildNextSongMarqueeClones();
+
+      if (!visibleWidth || !textWidth || !cloneCount) {
+        nextSongMsg.classList.remove('marquee-active');
+        nextSongMarqueeTrack.style.removeProperty('--next-song-scroll-distance');
+        nextSongMarqueeTrack.style.removeProperty('--next-song-marquee-duration');
+        return;
+      }
+
+      const scrollDistance = Math.max(textWidth, visibleWidth * 0.35) + NEXT_SONG_MARQUEE_GAP;
+      const duration = Math.max(10, scrollDistance / NEXT_SONG_MARQUEE_SPEED);
+
+      nextSongMarqueeTrack.style.setProperty('--next-song-scroll-distance', `${scrollDistance}px`);
+      nextSongMarqueeTrack.style.setProperty('--next-song-marquee-duration', `${duration}s`);
+      nextSongMsg.classList.add('marquee-active');
+    }
+
+    function queueNextSongMarqueeSync() {
+      cancelNextSongMarqueeFrame();
+      nextSongMarqueeFrame = requestAnimationFrame(() => {
+        nextSongMarqueeFrame = requestAnimationFrame(() => {
+          nextSongMarqueeFrame = null;
+          syncNextSongMarquee();
+        });
+      });
+    }
+
+    function updateNextSongMessage(message) {
+      nextSongTitle.textContent = message;
+      nextSongMsg.classList.add('show');
+      queueNextSongMarqueeSync();
+    }
+
+    function hideNextSongMessage() {
+      cancelNextSongMarqueeFrame();
+      nextSongMsg.classList.remove('show', 'marquee-active');
+      nextSongMarqueeTrack.style.removeProperty('--next-song-scroll-distance');
+      nextSongMarqueeTrack.style.removeProperty('--next-song-marquee-duration');
+      clearNextSongMarqueeClones();
+    }
+
     function clearArtwork() {
       if (art) {
         art.style.backgroundImage = 'url("../assets/MusicNote.png")';
@@ -988,7 +1118,7 @@
       currentProgress = 0;
       setPlayIcon();
       renderProgress();
-      nextSongMsg.classList.remove('show');
+      hideNextSongMessage();
     }
 
     function updateMoreMenuForProvider(isReady) {
@@ -1139,17 +1269,16 @@
             const queue = await activeProvider.getQueue();
             if (queue?.queue && queue.queue.length > 0) {
               const nextSong = queue.queue[0];
-              nextSongTitle.textContent = nextSong.name + ' - ' + (nextSong.artists?.[0]?.name || 'Unknown');
-              nextSongMsg.classList.add('show');
+              updateNextSongMessage(nextSong.name + ' - ' + (nextSong.artists?.[0]?.name || 'Unknown'));
             } else {
-              nextSongMsg.classList.remove('show');
+              hideNextSongMessage();
             }
           } catch (e) {
             window.api.rendererLog?.('error', `Failed to fetch queue: ${e.message}`);
-            nextSongMsg.classList.remove('show');
+            hideNextSongMessage();
           }
         } else {
-          nextSongMsg.classList.remove('show');
+          hideNextSongMessage();
         }
 
         activeProvider.getVolume().then(v => {
@@ -1428,7 +1557,7 @@
     // Queue window state listeners
     window.api.onQueueOpened(() => {
       isQueueOpen = true;
-      nextSongMsg.classList.remove('show');
+      hideNextSongMessage();
     });
 
     window.api.onQueueClosed(() => {
@@ -1437,7 +1566,7 @@
 
     window.api.onLocalOpened?.(() => {
       isLocalOpen = true;
-      nextSongMsg.classList.remove('show');
+      hideNextSongMessage();
     });
 
     window.api.onLocalClosed?.(() => {
@@ -1509,6 +1638,8 @@
         }
       }).catch(() => {});
     });
+
+    window.addEventListener('resize', queueNextSongMarqueeSync);
 
     setPlayIcon();
     window.api.getSourceMode().then(switchProvider).catch(() => switchProvider('spotify'));
