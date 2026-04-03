@@ -31,7 +31,9 @@ const CLIENT_ID = process.env.SPOTIFY_CLIENT_ID;
 if (!CLIENT_ID) {
   throw new Error('Missing SPOTIFY_CLIENT_ID in .env');
 }
-const REDIRECT_URI = 'http://127.0.0.1:5173/callback';
+const AUTH_PORT = Number.parseInt(process.env.MINIBOX_AUTH_PORT || '5173', 10);
+const AUTH_HOST = '127.0.0.1';
+const REDIRECT_URI = `http://${AUTH_HOST}:${AUTH_PORT}/callback`;
 const SCOPES = [
   'user-read-currently-playing',
   'user-read-playback-state',
@@ -613,7 +615,105 @@ authApp.get('/callback', async (req, res) => {
     if (queueWin && !queueWin.isDestroyed()) queueWin.webContents.send('authed'); // push to queue window
     if (settingsWin && !settingsWin.isDestroyed()) settingsWin.webContents.send('authed'); // push to settings window
     if (localWin && !localWin.isDestroyed()) localWin.webContents.send('authed'); // push to local window
-    res.send('<script>window.close()</script><p>Logged in. You can close this window.</p>');
+    res.set('Cache-Control', 'no-store');
+    res.type('html').send(`<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>MiniBox Login Complete</title>
+    <style>
+      :root {
+        color-scheme: dark;
+      }
+
+      body {
+        margin: 0;
+        min-height: 100vh;
+        display: grid;
+        place-items: center;
+        background: radial-gradient(circle at top, #2d8f6f 0%, #121212 52%, #090909 100%);
+        color: #f7f7f7;
+        font-family: "Segoe UI", Tahoma, Geneva, Verdana, sans-serif;
+      }
+
+      main {
+        width: min(440px, calc(100vw - 32px));
+        padding: 28px 24px;
+        border-radius: 18px;
+        background: rgba(12, 18, 16, 0.9);
+        box-shadow: 0 18px 48px rgba(0, 0, 0, 0.35);
+      }
+
+      h1 {
+        margin: 0 0 10px;
+        font-size: 24px;
+      }
+
+      p {
+        margin: 0;
+        line-height: 1.5;
+        color: rgba(247, 247, 247, 0.82);
+      }
+
+      .meta {
+        margin-top: 16px;
+        font-size: 13px;
+        color: rgba(247, 247, 247, 0.65);
+      }
+
+      .actions {
+        margin-top: 18px;
+        display: flex;
+        gap: 12px;
+        align-items: center;
+      }
+
+      button {
+        appearance: none;
+        border: 0;
+        border-radius: 999px;
+        padding: 10px 16px;
+        background: #f7f7f7;
+        color: #101010;
+        font: inherit;
+        font-weight: 700;
+        cursor: pointer;
+      }
+    </style>
+  </head>
+  <body>
+    <main>
+      <h1>MiniBox login complete</h1>
+      <p>You can return to MiniBox now. This tab will stay open for a few seconds so you can confirm the login finished correctly.</p>
+      <p class="meta" id="status">This tab will try to close automatically in 30 seconds.</p>
+      <div class="actions">
+        <button id="closeBtn" type="button">Close Now</button>
+      </div>
+    </main>
+    <script>
+      const status = document.getElementById('status');
+      const closeBtn = document.getElementById('closeBtn');
+      let secondsRemaining = 30;
+
+      closeBtn.addEventListener('click', () => {
+        window.close();
+      });
+
+      const intervalId = setInterval(() => {
+        secondsRemaining -= 1;
+        if (secondsRemaining <= 0) {
+          clearInterval(intervalId);
+          status.textContent = 'Closing...';
+          window.close();
+          return;
+        }
+
+        status.textContent = 'This tab will try to close automatically in ' + secondsRemaining + ' seconds.';
+      }, 1000);
+    </script>
+  </body>
+</html>`);
   } catch (e) {
     logger.log('auth', `exchange failed: ${e.message}`);
     res.status(500).send('Auth failed: ' + e.message);
@@ -622,9 +722,66 @@ authApp.get('/callback', async (req, res) => {
 
 // Don't start server here - it will start when app is ready
 let authServer = null;
+let authServerReady = false;
+let authServerStartPromise = null;
+
+function getAuthServerBaseUrl() {
+  return `http://${AUTH_HOST}:${AUTH_PORT}`;
+}
+
+function startAuthServer() {
+  if (authServer && authServerReady) {
+    return Promise.resolve(authServer);
+  }
+
+  if (authServerStartPromise) {
+    return authServerStartPromise;
+  }
+
+  authServerStartPromise = new Promise((resolve, reject) => {
+    const server = authApp.listen(AUTH_PORT, AUTH_HOST);
+
+    const handleListening = () => {
+      server.removeListener('error', handleError);
+      authServer = server;
+      authServerReady = true;
+      authServerStartPromise = null;
+      logger.log('startup', `Auth server listening on ${getAuthServerBaseUrl()}`);
+      resolve(server);
+    };
+
+    const handleError = (err) => {
+      server.removeListener('listening', handleListening);
+      authServer = null;
+      authServerReady = false;
+      authServerStartPromise = null;
+      reject(err);
+    };
+
+    server.once('listening', handleListening);
+    server.once('error', handleError);
+    server.once('close', () => {
+      if (authServer === server) {
+        authServer = null;
+      }
+      authServerReady = false;
+    });
+  });
+
+  return authServerStartPromise;
+}
 
 // ===== IPC =====
 ipcMain.handle('login', async () => {
+  try {
+    await startAuthServer();
+  } catch (err) {
+    const message = `MiniBox could not start its local login server on ${AUTH_HOST}:${AUTH_PORT}. Another app may already be using that port.`;
+    logger.log('auth', `login blocked: ${err.message}`);
+    dialog.showErrorBox('MiniBox Login Error', `${message}\n\nDetails: ${err.message}`);
+    return false;
+  }
+
   const authSession = setPendingSpotifyAuth(newPendingSpotifyAuth());
   const alreadyStored = await loadRefreshToken();        // check keychain
   const url = authUrl({ forceDialog: !alreadyStored, authSession });  // force consent only when needed
@@ -1293,11 +1450,9 @@ app.whenReady().then(async () => {
   
   // Start auth server for Spotify OAuth redirects
   try {
-    authServer = authApp.listen(5173, () => {
-      logger.log('startup', 'Auth server listening on http://127.0.0.1:5173');
-    });
+    await startAuthServer();
   } catch (err) {
-    logger.log('error', `Failed to start auth server: ${err.message}`);
+    logger.log('error', `Failed to start auth server on ${getAuthServerBaseUrl()}: ${err.message}`);
   }
   
   // Set app icon for taskbar and system
@@ -1407,6 +1562,8 @@ app.whenReady().then(async () => {
     // Close auth server
     if (authServer) {
       authServer.close();
+      authServer = null;
+      authServerReady = false;
       logger.log('shutdown', 'Auth server closed');
     }
     
