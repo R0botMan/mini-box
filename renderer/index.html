@@ -42,7 +42,7 @@
     .next-song-message {
       position: absolute;
       bottom: 150px;
-      left: 0;
+      left: 95px;
       right: 0;
       display: none;
       align-items: center;
@@ -52,7 +52,7 @@
       padding: 8px 12px;
       border-radius: 6px;
       font-size: 11px;
-      max-width: 335px;
+      max-width: 240px;
       margin: 0 auto 8px;
       animation: slideUp 0.3s ease-out;
       -webkit-app-region: no-drag;
@@ -82,6 +82,89 @@
     }
     .next-song-message.marquee-active .marquee-track {
       animation: nextSongMarquee var(--next-song-marquee-duration, 12s) linear infinite;
+    }
+
+    .update-banner {
+      position: absolute;
+      bottom: 160px;
+      left: 105px;
+      right: 0;
+      display: none;
+      flex-direction: column;
+      gap: 3px;
+      background: var(--theme-background-light);
+      color: var(--theme-text-primary);
+      padding: 8px 12px;
+      border-radius: 6px;
+      font-size: 12px;
+      max-width: 255px;
+      margin: 0 auto 4px;
+      animation: slideUp 0.3s ease-out;
+      -webkit-app-region: no-drag;
+      pointer-events: auto;
+      z-index: 0;
+      overflow: hidden;
+      box-sizing: border-box;
+    }
+    .update-banner.show {
+      display: flex;
+    }
+    .update-banner-row {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 8px;
+    }
+    .update-banner-title {
+      font-size: 12px;
+      font-weight: 700;
+      min-width: 122px;
+      flex: 0 0 auto;
+    }
+    .update-banner-progress {
+      flex: 1;
+      height: 7px;
+      border-radius: 6px;
+      background: var(--theme-progress-bg);
+      overflow: hidden;
+    }
+    .update-banner-progress-fill {
+      height: 100%;
+      width: 0%;
+      background: var(--theme-progress-fill);
+      transition: width 0.25s linear;
+    }
+    .update-banner-subtitle {
+      color: var(--theme-text-primary);
+      font-size: 12px;
+      min-width: 34px;
+      text-align: right;
+      flex: 0 0 auto;
+    }
+    .update-banner-actions {
+      display: flex;
+      gap: 6px;
+      align-items: center;
+      justify-content: flex-end;
+    }
+    .update-banner-ready-text {
+      color: var(--theme-text-primary);
+      font-size: 12px;
+      margin-right: auto;
+    }
+    .update-banner-actions button {
+      padding: 4px 6px;
+      background: var(--theme-button-bg);
+      border: 1px solid var(--theme-border-color);
+      border-radius: 4px;
+      color: var(--theme-text-primary);
+      font-size: 12px;
+      font-family: 'Pixelify Sans', sans-serif;
+      cursor: pointer;
+    }
+    .update-banner-actions button:hover {
+      background: var(--theme-button-bg-hover);
+      border-color: var(--theme-border-color-hover);
     }
     @keyframes slideUp {
       from {
@@ -476,14 +559,167 @@
     .confirm-buttons .confirm-yes:hover {
       background: rgba(255, 100, 100, 0.5);
     }
+
+    .notice-dialog {
+      position: fixed;
+      top: 0;
+      left: 0;
+      right: 0;
+      bottom: 0;
+      display: none;
+      align-items: center;
+      justify-content: center;
+      z-index: 120;
+      -webkit-app-region: no-drag;
+      opacity: 0;
+      pointer-events: none;
+    }
+
+    .notice-dialog.show {
+      display: flex;
+      opacity: 1;
+      pointer-events: auto;
+    }
+
+    .notice-dialog.entering {
+      animation: noticeFadeIn 0.2s ease-out forwards;
+    }
+
+    .notice-dialog.closing {
+      animation: noticeFadeOut 0.18s ease-in forwards;
+    }
+
+    .notice-content {
+      width: min(320px, calc(100vw - 28px));
+      background: rgba(18, 18, 18, 0.96);
+      border: 1px solid var(--theme-border-color-hover);
+      border-radius: 10px;
+      padding: 14px;
+      opacity: 1;
+      transform: translateY(0) scale(1);
+      transform-origin: center;
+    }
+
+    .notice-dialog.entering .notice-content {
+      animation: noticePopIn 0.24s cubic-bezier(0.2, 0.8, 0.2, 1) forwards;
+    }
+
+    .notice-dialog.closing .notice-content {
+      animation: noticePopOut 0.18s ease-in forwards;
+    }
+
+    .notice-content h3 {
+      margin: 0 0 8px 0;
+      font-size: 14px;
+    }
+
+    .notice-content p {
+      margin: 0 0 12px 0;
+      font-size: 11px;
+      line-height: 1.45;
+      color: var(--theme-text-opacity);
+    }
+
+    .notice-points {
+      margin: 0 0 12px 14px;
+      padding: 0;
+      font-size: 11px;
+      color: var(--theme-text-primary);
+      line-height: 1.5;
+    }
+
+    .notice-actions {
+      display: flex;
+      gap: 6px;
+    }
+
+    .notice-actions button {
+      flex: 1;
+      padding: 6px 8px;
+      background: var(--theme-button-bg);
+      border: 1px solid var(--theme-border-color);
+      border-radius: 4px;
+      color: var(--theme-text-primary);
+      font-family: 'Pixelify Sans', sans-serif;
+      font-size: 10px;
+      cursor: pointer;
+    }
+
+    .notice-actions button:hover {
+      background: var(--theme-button-bg-hover);
+      border-color: var(--theme-border-color-hover);
+    }
+    .rate-limit-message {
+      position: absolute;
+      top: 8px;
+      left: 50%;
+      transform: translateX(-50%);
+      background: rgba(255, 50, 50, 0.9);
+      color: #fff;
+      padding: 6px 12px;
+      border-radius: 6px;
+      font-size: 11px;
+      z-index: 30;
+      display: none;
+      -webkit-app-region: no-drag;
+    }
+
+    @keyframes noticeFadeIn {
+      from { opacity: 0; }
+      to { opacity: 1; }
+    }
+
+    @keyframes noticeFadeOut {
+      from { opacity: 1; }
+      to { opacity: 0; }
+    }
+
+    @keyframes noticePopIn {
+      from {
+        opacity: 0;
+        transform: translateY(10px) scale(0.96);
+      }
+      to {
+        opacity: 1;
+        transform: translateY(0) scale(1);
+      }
+    }
+
+    @keyframes noticePopOut {
+      from {
+        opacity: 1;
+        transform: translateY(0) scale(1);
+      }
+      to {
+        opacity: 0;
+        transform: translateY(8px) scale(0.97);
+      }
+    }
+
   </style>
 </head>
 <body>
+  <div class="rate-limit-message" id="rateLimitMsg">
+    <span>Spotify API Rate Limit Exceeded. Please wait </span>
+  </div>
   <div class="next-song-message" id="nextSongMsg">
     <div class="marquee" id="nextSongMarquee">
       <div class="marquee-track" id="nextSongMarqueeTrack">
-        <span class="marquee-item" id="nextSongBaseItem">Next: <strong id="nextSongTitle">Loading...</strong></span>
+        <span class="marquee-item" id="nextSongBaseItem">Next: <strong id="nextSongTitle"> Loading...</strong></span>
       </div>
+    </div>
+  </div>
+  <div class="update-banner" id="updateBanner">
+    <div class="update-banner-row">
+      <span class="update-banner-title" id="updateBannerTitle">Downloading update...</span>
+      <div class="update-banner-progress" id="updateBannerProgress">
+        <div class="update-banner-progress-fill" id="updateBannerProgressFill"></div>
+      </div>
+      <span class="update-banner-subtitle" id="updateBannerPercent">0%</span>
+    </div>
+    <div class="update-banner-actions">
+      <span class="update-banner-ready-text" id="updateReadyText" style="display:none;">Ready to install</span>
+      <button id="updateInstallBtn" style="display:none;">Install Update</button>
     </div>
   </div>
   <div class="box">
@@ -495,7 +731,7 @@
     </div>
 
     <div class="controls">
-      <button id="login" style="padding:6px 12px; background:#fff; color:#000; border:0; border-radius:4px; font-family:inherit; font-weight:700; font-size:12px; cursor:pointer; -webkit-app-region:no-drag;" title="Login">Login</button>
+      <button id="login" style="padding:6px 12px; background:#fff; color:#000; border:0; border-radius:4px; font-family:inherit; font-weight:700; font-size:12px; cursor:pointer; -webkit-app-region:no-drag;" title="Open Spotify setup">Open</button>
       <button class="pixel-btn" id="prev" style="--icon:url('../assets/PrevButton.png')"  title="Previous"></button>
       <button class="pixel-btn" id="play" style="--icon:url('../assets/PlayButton.png')" title="Play/Pause"></button>
       <button class="pixel-btn" id="next" style="--icon:url('../assets/NextButton.png')"  title="Next"></button>
@@ -542,6 +778,15 @@
     </div>
   </div>
 
+  <div class="notice-dialog" id="noticeDialog">
+    <div class="notice-content">
+      <h3 id="noticeTitle"></h3>
+      <p id="noticeMessage"></p>
+      <ul class="notice-points" id="noticePoints"></ul>
+      <div class="notice-actions" id="noticeActions"></div>
+    </div>
+  </div>
+
   <script>
     const art = document.getElementById('art');
     const artFrame = document.querySelector('.art-frame');
@@ -570,6 +815,11 @@
     const confirmMessage = document.getElementById('confirmMessage');
     const confirmYes = document.getElementById('confirmYes');
     const confirmNo = document.getElementById('confirmNo');
+    const noticeDialog = document.getElementById('noticeDialog');
+    const noticeTitle = document.getElementById('noticeTitle');
+    const noticeMessage = document.getElementById('noticeMessage');
+    const noticePoints = document.getElementById('noticePoints');
+    const noticeActions = document.getElementById('noticeActions');
 
     let confirmAction = null; // stores the action to execute on confirmation
 
@@ -584,7 +834,19 @@
     const nextSongMarqueeTrack = document.getElementById('nextSongMarqueeTrack');
     const nextSongBaseItem = document.getElementById('nextSongBaseItem');
     const nextSongTitle = document.getElementById('nextSongTitle');
+    const updateBanner = document.getElementById('updateBanner');
+    const updateBannerRow = updateBanner.querySelector('.update-banner-row');
+    const updateBannerTitle = document.getElementById('updateBannerTitle');
+    const updateBannerPercent = document.getElementById('updateBannerPercent');
+    const updateBannerProgress = document.getElementById('updateBannerProgress');
+    const updateBannerProgressFill = document.getElementById('updateBannerProgressFill');
+    const updateReadyText = document.getElementById('updateReadyText');
+    const updateInstallBtn = document.getElementById('updateInstallBtn');
 
+    //rate limit message ref
+    const rateLimitMsg = document.getElementById('rateLimitMsg');
+    let rateLimitCountdownInterval = null;
+    
     // Volume refs
     const volBtn  = document.getElementById('volBtn');
     const volPop  = document.getElementById('volPop');
@@ -599,15 +861,21 @@
     let isQueueOpen = false;
     let isLocalOpen = false;
     let isMoreOpen = false;
+    let isSetupOpen = false;
+    let isOnboardingOpen = false;
     let isVolPopOpen = false;
     let activeSourceMode = 'spotify';
     let activeProvider = null;
     let wasInApparentPrivateSession = false; // Track private session state transitions
     let nextSongMarqueeFrame = null;
+    let activeDownloadRequestVersion = '';
+    let lastQueueFetchAt = 0;
 
     const NEXT_SONG_MARQUEE_GAP = 24;
     const NEXT_SONG_MARQUEE_MAX_DUPLICATES = 5;
     const NEXT_SONG_MARQUEE_SPEED = 28;
+    const SPOTIFY_POLL_INTERVAL_MS = 1600;
+    const QUEUE_FETCH_COOLDOWN_MS = 4000;
 
     const localAudio = new Audio();
     localAudio.preload = 'metadata';
@@ -1088,6 +1356,9 @@
     }
 
     function updateNextSongMessage(message) {
+      if (updateBanner.classList.contains('show')) {
+        return;
+      }
       nextSongTitle.textContent = message;
       nextSongMsg.classList.add('show');
       queueNextSongMarqueeSync();
@@ -1099,6 +1370,214 @@
       nextSongMarqueeTrack.style.removeProperty('--next-song-scroll-distance');
       nextSongMarqueeTrack.style.removeProperty('--next-song-marquee-duration');
       clearNextSongMarqueeClones();
+    }
+
+    function stopRateLimitCountdown() {
+      if (rateLimitCountdownInterval) {
+        clearInterval(rateLimitCountdownInterval);
+        rateLimitCountdownInterval = null;
+      }
+    }
+
+    function hideRateLimitMessage() {
+      stopRateLimitCountdown();
+      rateLimitMsg.style.display = 'none';
+      rateLimitMsg.textContent = 'Spotify API Rate Limit Exceeded. Please wait';
+    }
+
+    async function updateRateLimitMessage() {
+      try {
+        const status = await window.api.getSpotifyRateLimitStatus?.();
+        if (!status?.isRateLimited) {
+          hideRateLimitMessage();
+          return;
+        }
+
+        const remainingSeconds = Math.max(1, Math.ceil((status.remainingMs || 0) / 1000));
+        rateLimitMsg.textContent = `Spotify API rate limit reached. Please wait ${remainingSeconds}s`;
+        rateLimitMsg.style.display = 'block';
+      } catch {
+        hideRateLimitMessage();
+      }
+    }
+
+    function startRateLimitCountdown() {
+      if (rateLimitCountdownInterval) {
+        return;
+      }
+
+      updateRateLimitMessage().catch(() => {});
+      rateLimitCountdownInterval = setInterval(() => {
+        updateRateLimitMessage().catch(() => {});
+      }, 1000);
+    }
+
+    function hideUpdateBanner() {
+      updateBanner.classList.remove('show');
+      updateInstallBtn.style.display = 'none';
+      updateReadyText.style.display = 'none';
+      updateBannerTitle.textContent = 'Downloading update...';
+      updateBannerPercent.textContent = '0%';
+      updateBannerProgressFill.style.width = '0%';
+    }
+
+    function showUpdateBanner({
+      title = 'Downloading update...',
+      percent = 0,
+      allowInstall = false,
+      hideProgress = false,
+      hideHeader = false
+    } = {}) {
+      hideNextSongMessage();
+      updateBannerTitle.textContent = title;
+
+      const normalizedPercent = Math.max(0, Math.min(100, Math.round(percent)));
+      updateBannerPercent.textContent = `${normalizedPercent}%`;
+      updateBannerProgressFill.style.width = `${normalizedPercent}%`;
+
+      updateInstallBtn.style.display = allowInstall ? '' : 'none';
+      updateReadyText.style.display = allowInstall ? '' : 'none';
+      updateBannerProgress.style.display = hideProgress ? 'none' : '';
+      updateBannerPercent.style.display = hideProgress ? 'none' : '';
+      updateBannerRow.style.display = hideHeader ? 'none' : '';
+
+      updateBanner.classList.add('show');
+    }
+
+    function hideNoticeDialog() {
+      if (!noticeDialog.classList.contains('show') || noticeDialog.classList.contains('closing')) {
+        return;
+      }
+
+      noticeDialog.classList.remove('entering');
+      noticeDialog.classList.add('closing');
+
+      setTimeout(() => {
+        noticeDialog.classList.remove('closing');
+        noticeDialog.classList.remove('show');
+      }, 190);
+
+      noticeTitle.textContent = '';
+      noticeMessage.textContent = '';
+      noticePoints.innerHTML = '';
+      noticeActions.innerHTML = '';
+    }
+
+    function showNoticeDialog({ title, message, points = [], actions = [] }) {
+      noticeTitle.textContent = title || '';
+      noticeMessage.textContent = message || '';
+      noticePoints.innerHTML = '';
+      noticeActions.innerHTML = '';
+
+      if (!points.length) {
+        noticePoints.style.display = 'none';
+      } else {
+        noticePoints.style.display = '';
+        points.forEach((point) => {
+          const li = document.createElement('li');
+          li.textContent = point;
+          noticePoints.appendChild(li);
+        });
+      }
+
+      actions.forEach((action) => {
+        const button = document.createElement('button');
+        button.textContent = action.label;
+        button.addEventListener('click', async () => {
+          try {
+            await action.onClick?.();
+          } finally {
+            if (!action.keepOpen) {
+              hideNoticeDialog();
+            }
+          }
+        });
+        noticeActions.appendChild(button);
+      });
+
+      noticeDialog.classList.remove('closing');
+      noticeDialog.classList.add('show');
+      noticeDialog.classList.add('entering');
+      setTimeout(() => {
+        noticeDialog.classList.remove('entering');
+      }, 260);
+    }
+
+    async function maybeShowUpdatePrompt(status, info) {
+      const version = info?.version || '';
+      const isPreviewStatus = !!info?._isPreviewStatus;
+      if (!version) {
+        if (status === 'not-available' || status === 'error' || status === 'idle') {
+          hideUpdateBanner();
+        }
+        return;
+      }
+
+      let snapshot = null;
+      try {
+        snapshot = await window.api.getUpdateStatus?.();
+      } catch {}
+
+      const reminderAt = Number(snapshot?.reminderAt || 0);
+      const dismissedVersion = String(snapshot?.dismissedVersion || '');
+
+      if (!isPreviewStatus && dismissedVersion === version && reminderAt && Date.now() < reminderAt) {
+        hideUpdateBanner();
+        return;
+      }
+
+      if (status === 'available') {
+        if (activeDownloadRequestVersion && activeDownloadRequestVersion === version) {
+          return;
+        }
+        hideUpdateBanner();
+        showNoticeDialog({
+          title: `Update ${version} available`,
+          message: 'A new MiniBox update is ready to download.',
+          actions: [
+            {
+              label: 'Download Update',
+              onClick: async () => {
+                activeDownloadRequestVersion = version;
+                await window.api.downloadUpdate?.();
+              }
+            },
+            {
+              label: 'Remind Later',
+              onClick: async () => {
+                await window.api.remindUpdateLater?.(version, 1000 * 60 * 60 * 24);
+              }
+            }
+          ]
+        });
+      }
+
+      if (status === 'downloading') {
+        activeDownloadRequestVersion = version;
+        const progressPercent = Number(info?.downloadProgress?.percent || 0);
+        showUpdateBanner({
+          title: `Downloading`,
+          percent: progressPercent,
+          allowInstall: false,
+          hideProgress: false
+        });
+      }
+
+      if (status === 'ready') {
+        activeDownloadRequestVersion = version;
+        showUpdateBanner({
+          title: '',
+          percent: 100,
+          allowInstall: true,
+          hideProgress: true,
+          hideHeader: true
+        });
+      }
+
+      if (status === 'not-available' || status === 'error' || status === 'idle') {
+        activeDownloadRequestVersion = '';
+        hideUpdateBanner();
+      }
     }
 
     function clearArtwork() {
@@ -1243,6 +1722,9 @@
 
         if (!data || !data.item) {
           if (activeProvider.key === 'spotify') {
+            startRateLimitCountdown();
+          }
+          if (activeProvider.key === 'spotify') {
             const isNowInPrivateSession = !wasInApparentPrivateSession;
             if (wasInApparentPrivateSession === false && isNowInPrivateSession === true) {
               window.api.rendererLog?.('privacy', 'Private session detected - no track data returned');
@@ -1262,16 +1744,20 @@
         }
 
         applyCurrentTrackData(data);
+        hideRateLimitMessage();
 
         const timeRemaining = currentDuration - currentProgress;
-        if (timeRemaining <= 15000 && timeRemaining > 0 && isPlaying && !isQueueOpen && !isLocalOpen && !isMoreOpen && !isVolPopOpen) {
+        if (timeRemaining <= 15000 && timeRemaining > 0 && isPlaying && !isQueueOpen && !isLocalOpen && !isMoreOpen && !isSetupOpen && !isOnboardingOpen && !isVolPopOpen) {
           try {
-            const queue = await activeProvider.getQueue();
-            if (queue?.queue && queue.queue.length > 0) {
-              const nextSong = queue.queue[0];
-              updateNextSongMessage(nextSong.name + ' - ' + (nextSong.artists?.[0]?.name || 'Unknown'));
-            } else {
-              hideNextSongMessage();
+            if ((Date.now() - lastQueueFetchAt) >= QUEUE_FETCH_COOLDOWN_MS) {
+              lastQueueFetchAt = Date.now();
+              const queue = await activeProvider.getQueue();
+              if (queue?.queue && queue.queue.length > 0) {
+                const nextSong = queue.queue[0];
+                updateNextSongMessage(nextSong.name + ' - ' + (nextSong.artists?.[0]?.name || 'Unknown'));
+              } else {
+                hideNextSongMessage();
+              }
             }
           } catch (e) {
             window.api.rendererLog?.('error', `Failed to fetch queue: ${e.message}`);
@@ -1280,14 +1766,6 @@
         } else {
           hideNextSongMessage();
         }
-
-        activeProvider.getVolume().then(v => {
-          if (typeof v === 'number') {
-            volume = v;
-            if (volume > 0) lastNonZeroVol = volume;
-            renderVolume();
-          }
-        }).catch(()=>{});
       } catch {}
     }
 
@@ -1339,8 +1817,8 @@
                   window.api.rendererLog?.('error', `poll refresh error: ${err?.message}`);
                 }
               });
-            }, 800);
-            window.api.rendererLog?.('refresh', 'polling started (800ms interval)');
+            }, SPOTIFY_POLL_INTERVAL_MS);
+            window.api.rendererLog?.('refresh', `polling started (${SPOTIFY_POLL_INTERVAL_MS}ms interval)`);
           }
         }).catch(() => {
           window.api.rendererLog?.('auth', 'cannot start polling - auth check failed');
@@ -1393,7 +1871,13 @@
       await initializeActiveProvider();
     }
 
-    btnLogin.onclick = async () => { await window.api.login(); setTimeout(initializeActiveProvider, 900); };
+    btnLogin.onclick = async () => {
+      try {
+        await window.api.toggleSetup();
+      } catch (err) {
+        console.error('Failed to open Spotify setup window:', err);
+      }
+    };
     window.api.onAuthed(() => {
       window.api.rendererLog?.('auth', 'Authenticated event received');
       if (activeProvider?.key === 'spotify') {
@@ -1554,6 +2038,20 @@
       }
     });
 
+    updateInstallBtn.addEventListener('click', async () => {
+      try {
+        await window.api.installUpdate?.();
+      } catch (err) {
+        console.error('Failed to install update:', err);
+      }
+    });
+
+    noticeDialog.addEventListener('click', (e) => {
+      if (e.target === noticeDialog) {
+        hideNoticeDialog();
+      }
+    });
+
     // Queue window state listeners
     window.api.onQueueOpened(() => {
       isQueueOpen = true;
@@ -1573,6 +2071,24 @@
       isLocalOpen = false;
     });
 
+    window.api.onSetupOpened?.(() => {
+      isSetupOpen = true;
+      hideNextSongMessage();
+    });
+
+    window.api.onSetupClosed?.(() => {
+      isSetupOpen = false;
+    });
+
+    window.api.onOnboardingOpened?.(() => {
+      isOnboardingOpen = true;
+      hideNextSongMessage();
+    });
+
+    window.api.onOnboardingClosed?.(() => {
+      isOnboardingOpen = false;
+    });
+
     // More window state listeners
     window.api.onMoreOpened(() => {
       isMoreOpen = true;
@@ -1586,6 +2102,10 @@
     window.api.onForceRefresh?.(() => {
       window.api.rendererLog?.('refresh', 'Force refresh signal received - calling refresh()');
       refresh().catch(() => {});
+    });
+
+    window.api.onUpdateStatusChanged?.((_event, payload) => {
+      maybeShowUpdatePrompt(payload?.status, payload?.info).catch(() => {});
     });
 
     localAudio.addEventListener('loadedmetadata', () => {
@@ -1643,6 +2163,9 @@
 
     setPlayIcon();
     window.api.getSourceMode().then(switchProvider).catch(() => switchProvider('spotify'));
+    window.api.getUpdateStatus?.().then((snapshot) => {
+      maybeShowUpdatePrompt(snapshot?.status, snapshot?.info).catch(() => {});
+    }).catch(() => {});
 
     // Initialize theme
     initThemeVariables();

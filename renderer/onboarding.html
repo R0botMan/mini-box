@@ -1,0 +1,211 @@
+<!doctype html>
+<html>
+<head>
+  <meta charset="utf-8" />
+  <title>How to Use</title>
+  <link href="https://fonts.googleapis.com/css2?family=Pixelify+Sans&display=swap" rel="stylesheet">
+  <script src="../context/themeContext.js"></script>
+  <style>
+    :root {
+      --theme-background: rgba(12, 12, 12, 0.95);
+      --theme-text-primary: #fff;
+      --theme-border-color: rgba(255, 255, 255, 0.1);
+      --theme-border-color-hover: rgba(255, 255, 255, 0.2);
+      --theme-button-bg: rgba(255, 255, 255, 0.05);
+      --theme-button-bg-hover: rgba(255, 255, 255, 0.1);
+      --theme-text-opacity: rgba(255, 255, 255, 0.78);
+    }
+
+    html, body {
+      margin: 0;
+      padding: 0;
+      background: transparent;
+      font-family: 'Pixelify Sans', sans-serif;
+      color: var(--theme-text-primary);
+      width: 100%;
+      height: 100%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+
+    .onboarding-container {
+      width: 300px;
+      height: 200px;
+      background: var(--theme-background);
+      backdrop-filter: blur(6px);
+      border-radius: 10px;
+      border: 1px solid var(--theme-border-color);
+      padding: 14px;
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+      -webkit-app-region: drag;
+    }
+
+    .header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      -webkit-app-region: no-drag;
+    }
+
+    .title {
+      font-size: 13px;
+    }
+
+    .close-btn {
+      background: transparent;
+      border: none;
+      color: var(--theme-text-opacity);
+      font-size: 18px;
+      cursor: pointer;
+      width: 24px;
+      height: 24px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+
+    .panel {
+      flex: 1;
+      border: 1px solid var(--theme-border-color);
+      border-radius: 6px;
+      background: rgba(255, 255, 255, 0.03);
+      padding: 10px;
+      -webkit-app-region: no-drag;
+      overflow-y: auto;
+      overflow-x: hidden;
+      scrollbar-width: thin;
+      scrollbar-color: rgba(255, 255, 255, 0.35) transparent;
+    }
+
+    .panel::-webkit-scrollbar {
+      width: 8px;
+      background: transparent;
+    }
+
+    .panel::-webkit-scrollbar-track {
+      background: transparent;
+    }
+
+    .panel::-webkit-scrollbar-thumb {
+      background: rgba(255, 255, 255, 0.35);
+      border-radius: 6px;
+    }
+
+    .panel p {
+      margin: 0 0 8px 0;
+      font-size: 14px;
+      color: var(--theme-text-opacity);
+      line-height: 1.45;
+      text-align: center;
+    }
+
+    .panel span{
+      display: inline-block;
+      margin: 0 0 8px 0;
+      margin-bottom: 6px;
+      font-size: 12px;
+      text-align: justify;
+      color: var(--theme-text-primary);
+    }
+
+    .panel ul {
+      margin: 0;
+      padding-left: 14px;
+      font-size: 12px;
+      line-height: 1.45;
+      text-align: justify;
+    }
+
+    .footer {
+      display: flex;
+      gap: 6px;
+      -webkit-app-region: no-drag;
+    }
+
+    .footer button {
+      flex: 1;
+      padding: 6px 8px;
+      background: var(--theme-button-bg);
+      border: 1px solid var(--theme-border-color);
+      border-radius: 4px;
+      color: var(--theme-text-primary);
+      font-size: 12px;
+      font-family: 'Pixelify Sans', sans-serif;
+      cursor: pointer;
+    }
+
+    .footer button:hover {
+      background: var(--theme-button-bg-hover);
+      border-color: var(--theme-border-color-hover);
+    }
+  </style>
+</head>
+<body>
+  <div class="onboarding-container">
+    <div class="header">
+      <div class="title">Welcome to MiniBox!</div>
+    </div>
+    <div class="panel">
+      <p>Quick setup for the best experience:</p>
+      <span>
+        Welcome to MiniBox. You can use Spotify playback controls or play Local Files from a compact interface.
+      </span>
+      <ul>
+        <li>Spotify setup: create a Spotify Developer App, then paste your <strong>Client ID</strong> in MiniBox setup and use the provided redirect URI.</li>
+        <li>You need a <strong>Spotify Premium</strong> account for playback control.</li>
+        <li>Before using controls in MiniBox, start playback from Spotify on one of your devices first.</li>
+        <li>If Spotify <strong>Private Session</strong> is enabled, MiniBox may not receive playback data correctly.</li>
+        <li>Prefer local playback? Import folders/files and play directly from the Local Files source.</li>
+        <li>You can switch sources anytime in Settings, and also log out or clear app data there.</li>
+      </ul>
+      <span>Enjoy MiniBox :)</span>
+    </div>
+    <div class="footer">
+      <button id="openSetupBtn">Open Setup</button>
+      <button id="finishBtn">Finish</button>
+    </div>
+  </div>
+
+  <script>
+    const closeBtn = document.getElementById('closeBtn');
+    const openSetupBtn = document.getElementById('openSetupBtn');
+    const finishBtn = document.getElementById('finishBtn');
+
+    if (closeBtn) {
+      closeBtn.addEventListener('click', async () => {
+        try {
+          await window.api.completeOnboarding();
+          await window.api.toggleOnboarding();
+        } catch (err) {
+          console.error('Failed to close onboarding window:', err);
+        }
+      });
+    }
+
+    openSetupBtn.addEventListener('click', async () => {
+      try {
+        await window.api.completeOnboarding();
+        await window.api.toggleSetup();
+      } catch (err) {
+        console.error('Failed to open setup from onboarding:', err);
+      }
+    });
+
+    finishBtn.addEventListener('click', async () => {
+      try {
+        await window.api.completeOnboarding();
+        await window.api.toggleOnboarding();
+      } catch (err) {
+        console.error('Failed to complete onboarding:', err);
+      }
+    });
+
+    initThemeVariables();
+    loadInitialTheme();
+    setupThemeListener();
+  </script>
+</body>
+</html>

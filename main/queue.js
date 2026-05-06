@@ -21,26 +21,26 @@ module.exports = function registerQueueWindow({
 
     if (safeSongCount <= 1) {
       return {
-        width: 304,
-        height: 75,
-        queueWidth: 70,
-        queueHeight: 40
+        width: 254,
+        height: 55,
+        queueWidth: 115,
+        queueHeight: 10
       };
     }
 
     if (safeSongCount === 2) {
       return {
-        width: 304,
-        height: 80,
-        queueWidth: 70,
+        width: 254,
+        height: 96,
+        queueWidth: 115,
         queueHeight: 40
       };
     }
 
     return {
-      width: 304,
-      height: 110,
-      queueWidth: 70,
+      width: 254,
+      height: 122,
+      queueWidth: 115,
       queueHeight: 70
     };
   }
@@ -79,8 +79,8 @@ module.exports = function registerQueueWindow({
 
     const win = getMainWindow();
     const queueWin = new BrowserWindow({
-      width: 304,
-      height: 120,
+      width: 254,
+      height: 122,
       frame: false,
       transparent: true,
       backgroundColor: '#00000000',
@@ -95,6 +95,7 @@ module.exports = function registerQueueWindow({
         sandbox: true,
       }
     });
+    queueWin.setAlwaysOnTop(true, 'floating');
 
     setQueueWindow(queueWin);
     queueWin.loadFile(path.join(baseDir, '../renderer/queue.html'));

@@ -1,0 +1,329 @@
+<!doctype html>
+<html>
+<head>
+	<meta charset="utf-8" />
+	<title>Spotify Setup</title>
+	<link href="https://fonts.googleapis.com/css2?family=Pixelify+Sans&display=swap" rel="stylesheet">
+	<script src="../context/themeContext.js"></script>
+	<style>
+		:root {
+			--theme-background: rgba(12, 12, 12, 0.95);
+			--theme-text-primary: #fff;
+			--theme-border-color: rgba(255, 255, 255, 0.1);
+			--theme-button-bg: rgba(255, 255, 255, 0.05);
+			--theme-button-bg-hover: rgba(255, 255, 255, 0.1);
+			--theme-button-bg-active: rgba(255, 255, 255, 0.15);
+			--theme-border-color-hover: rgba(255, 255, 255, 0.15);
+			--theme-text-opacity: rgba(255, 255, 255, 0.7);
+			--theme-accent-danger: rgba(255, 100, 100, 0.2);
+			--theme-accent-danger-border: rgba(255, 120, 120, 0.8);
+		}
+
+		html, body {
+			margin: 0;
+			padding: 0;
+			background: transparent;
+			font-family: 'Pixelify Sans', sans-serif;
+			color: var(--theme-text-primary);
+			width: 100%;
+			height: 100%;
+			display: flex;
+			align-items: center;
+			justify-content: center;
+		}
+
+		.settings-container {
+			width: 270px;
+			height: 190px;
+			background: var(--theme-background);
+			backdrop-filter: blur(6px);
+			border-radius: 10px;
+			border: 1px solid var(--theme-border-color);
+			padding: 16px;
+			display: flex;
+			flex-direction: column;
+			gap: 12px;
+			overflow: hidden;
+			-webkit-app-region: drag;
+		}
+
+		.settings-header {
+			display: flex;
+			align-items: center;
+			justify-content: space-between;
+			gap: 8px;
+			-webkit-app-region: no-drag;
+		}
+
+		.settings-title {
+			font-size: 13px;
+			color: var(--theme-text-primary);
+		}
+
+		.settings-close-btn {
+			background: transparent;
+			border: none;
+			color: var(--theme-text-opacity);
+			font-size: 18px;
+			cursor: pointer;
+			padding: 0;
+			width: 24px;
+			height: 24px;
+			display: flex;
+			align-items: center;
+			justify-content: center;
+		}
+
+		.settings-item {
+			display: flex;
+			flex-direction: column;
+			gap: 8px;
+			padding: 8px;
+			background: rgba(255, 255, 255, 0.03);
+			border-radius: 6px;
+			border: 1px solid var(--theme-border-color);
+			-webkit-app-region: no-drag;
+		}
+
+		.settings-item-header {
+			display: flex;
+			justify-content: space-between;
+			align-items: center;
+			gap: 8px;
+		}
+
+		.settings-item-header-actions {
+			display: flex;
+			align-items: center;
+			gap: 6px;
+			position: relative;
+		}
+
+		.settings-label {
+			font-size: 12px;
+			color: var(--theme-text-primary);
+		}
+
+		.theme-btn, .tooltip-trigger {
+			padding: 4px 8px;
+			background: var(--theme-button-bg);
+			border: 1px solid var(--theme-border-color);
+			border-radius: 4px;
+			color: var(--theme-text-primary);
+			font-size: 10px;
+			font-family: 'Pixelify Sans', sans-serif;
+			cursor: pointer;
+			transition: all 0.2s;
+		}
+
+		.theme-btn:hover, .tooltip-trigger:hover {
+			background: var(--theme-button-bg-hover);
+			border-color: var(--theme-border-color-hover);
+		}
+
+		.theme-btn:active, .tooltip-trigger:active {
+			background: var(--theme-button-bg-active);
+		}
+
+		.theme-btn:disabled {
+			opacity: 0.45;
+			cursor: default;
+		}
+
+		.tooltip-trigger {
+			width: 20px;
+			height: 20px;
+			padding: 0;
+			display: inline-flex;
+			align-items: center;
+			justify-content: center;
+		}
+
+		.tooltip-trigger img {
+			width: 16px;
+			height: 16px;
+			display: block;
+		}
+
+		.spotify-setup-grid {
+			display: flex;
+			flex-direction: column;
+			gap: 8px;
+		}
+
+		.spotify-setup-actions {
+			display: flex;
+			gap: 6px;
+			flex-wrap: wrap;
+		}
+
+		.spotify-footer {
+			display: flex;
+			justify-content: flex-end;
+			-webkit-app-region: no-drag;
+		}
+
+		.spotify-input {
+			width: 100%;
+			box-sizing: border-box;
+			padding: 8px 10px;
+			background: rgba(255, 255, 255, 0.04);
+			border: 1px solid var(--theme-border-color);
+			border-radius: 6px;
+			color: var(--theme-text-primary);
+			font-size: 11px;
+			font-family: 'Pixelify Sans', sans-serif;
+		}
+
+		.spotify-input.invalid {
+			border-color: var(--theme-accent-danger-border);
+			box-shadow: 0 0 0 1px var(--theme-accent-danger);
+		}
+
+		.spotify-input[readonly] {
+			color: var(--theme-text-opacity);
+			cursor: default;
+		}
+
+		.spotify-validation-message {
+			display: none;
+			font-size: 10px;
+			color: #ff9a9a;
+			line-height: 1.4;
+		}
+
+		.spotify-validation-message.show {
+			display: block;
+		}
+
+		.spotify-tooltip {
+			position: absolute;
+			top: calc(100% + 8px);
+			right: 0;
+			width: 220px;
+			padding: 10px 12px;
+			background: var(--theme-background);
+			border: 1px solid var(--theme-border-color-hover);
+			border-radius: 8px;
+			backdrop-filter: blur(6px);
+			box-shadow: 0 10px 24px rgba(0, 0, 0, 0.35);
+			color: var(--theme-text-primary);
+			font-size: 11px;
+			line-height: 1.5;
+			display: none;
+			z-index: 20;
+		}
+
+		.spotify-tooltip.show {
+			display: block;
+		}
+
+		.confirm-dialog {
+			display: none;
+			position: absolute;
+			top: 50%;
+			left: 50%;
+			transform: translate(-50%, -50%);
+			background: var(--theme-background);
+			border: 1px solid var(--theme-accent-danger-border);
+			border-radius: 8px;
+			padding: 16px;
+			min-width: 210px;
+			z-index: 1000;
+			box-shadow: 0 8px 32px rgba(0, 0, 0, 0.5);
+			-webkit-app-region: no-drag;
+		}
+
+		.confirm-dialog.show {
+			display: flex;
+			flex-direction: column;
+			gap: 12px;
+		}
+
+		.confirm-message {
+			font-size: 12px;
+			text-align: center;
+			color: var(--theme-text-primary);
+		}
+
+		.confirm-dialog-buttons {
+			display: flex;
+			gap: 8px;
+		}
+
+		.confirm-dialog-buttons button {
+			flex: 1;
+			padding: 6px 8px;
+			border: 1px solid var(--theme-border-color);
+			border-radius: 4px;
+			background: var(--theme-button-bg);
+			color: var(--theme-text-primary);
+			font-family: 'Pixelify Sans', sans-serif;
+			font-size: 10px;
+			cursor: pointer;
+			transition: background 0.2s;
+		}
+
+		.confirm-dialog-buttons button:hover {
+			background: var(--theme-button-bg-hover);
+		}
+
+		.confirm-dialog-buttons .confirm-yes {
+			background: var(--theme-accent-danger);
+			border-color: var(--theme-accent-danger-border);
+		}
+
+		.confirm-dialog-buttons .confirm-yes:hover {
+			background: rgba(255, 100, 100, 0.3);
+		}
+	</style>
+</head>
+<body>
+	<div class="settings-container">
+		<div class="settings-header">
+			<div class="settings-title">Spotify Setup</div>
+			<button class="settings-close-btn" id="closeSetupBtn" title="Close">✕</button>
+		</div>
+		<div class="settings-item">
+			<div class="settings-item-header">
+                <span class="settings-label">Client ID</span>
+				<div class="settings-item-header-actions">
+					<button class="theme-btn" id="editSpotifyClientIdBtn" type="button">Edit</button>
+					<button class="theme-btn" id="openSpotifyDashboardBtn">Dashboard</button>
+					<button class="tooltip-trigger" id="spotifyTooltipBtn" type="button" title="Spotify setup help" aria-label="Spotify setup help">
+						<img src="../assets/ToolTip.png" alt="" />
+					</button>
+					<div class="spotify-tooltip" id="spotifyTooltip">
+						Create a Spotify app, add the redirect URI above, then paste your Client ID here before logging in.
+					</div>
+				</div>
+			</div>
+			<div class="spotify-setup-grid">
+				<input class="spotify-input" id="spotifyClientIdInput" type="text" placeholder="Paste your Spotify Client ID" spellcheck="false" />
+				<div class="spotify-validation-message" id="spotifyClientIdValidation"></div>
+				<!-- <input class="spotify-input" id="spotifyRedirectUriInput" type="text" readonly spellcheck="false" /> -->
+				<div class="spotify-setup-actions">
+					<button class="theme-btn" id="saveSpotifySetupBtn">Save Client ID</button>
+					<button class="theme-btn" id="copyRedirectUriBtn">Copy Redirect URI</button>
+				</div>
+			</div>
+		</div>
+		<div class="spotify-footer">
+			<button class="theme-btn" id="spotifyLoginBtn">Login</button>
+		</div>
+	</div>
+	<div class="confirm-dialog" id="confirmDialog">
+		<div class="confirm-message" id="confirmMessage"></div>
+		<div class="confirm-dialog-buttons">
+			<button class="confirm-no" id="confirmNo">Cancel</button>
+			<button class="confirm-yes" id="confirmYes">Confirm</button>
+		</div>
+	</div>
+	<script src="../context/setup.js"></script>
+	<script>
+		initThemeVariables();
+		loadInitialTheme();
+		setupThemeListener();
+	</script>
+</body>
+</html>

@@ -95,6 +95,7 @@ module.exports = function registerPatchWindow({
         sandbox: true,
       }
     });
+    patchWin.setAlwaysOnTop(true, 'floating');
 
     setPatchWindow(patchWin);
     patchWin.loadFile(path.join(baseDir, '../renderer/patch.html'));

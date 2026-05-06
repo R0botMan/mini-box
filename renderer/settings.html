@@ -45,7 +45,7 @@
     }
 
     .settings-container {
-      width: 220px;
+      width: 320px;
       height: 170px;
       background: var(--theme-background);
       backdrop-filter: blur(6px);
@@ -59,6 +59,9 @@
       overflow-y: auto;
       scrollbar-width: none;
       -ms-overflow-style: none;
+    }
+    .settings-container.modal-open {
+      overflow: hidden;
     }
 
     .settings-container::-webkit-scrollbar {
@@ -87,8 +90,8 @@
       font-size: 18px;
       cursor: pointer;
       padding: 0;
-      width: 24px;
-      height: 24px;
+      width: 14px;
+      height: 14px;
       display: flex;
       align-items: center;
       justify-content: center;
@@ -97,6 +100,22 @@
 
     .settings-close-btn:hover {
       color: var(--theme-text-primary);
+    }
+
+    .settings-close-btn.back-mode {
+      width: auto;
+      padding: 4px 8px;
+      border: 1px solid var(--theme-border-color);
+      border-radius: 4px;
+      background: var(--theme-button-bg);
+      color: var(--theme-text-primary);
+      font-size: 10px;
+      font-family: 'Pixelify Sans', sans-serif;
+    }
+
+    .settings-close-btn.back-mode:hover {
+      background: var(--theme-button-bg-hover);
+      border-color: var(--theme-border-color-hover);
     }
 
 
@@ -119,17 +138,32 @@
       -webkit-app-region: no-drag;
     }
 
+    .settings-item.stacked {
+      flex-direction: column;
+      align-items: stretch;
+      gap: 8px;
+    }
+
+    .settings-item-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .settings-item-header-actions {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      position: relative;
+    }
+
     .settings-label {
       font-size: 12px;
       display: flex;
       align-items: center;
       gap: 8px;
       color: var(--theme-text-primary);
-    }
-
-    .theme-toggle {
-      display: flex;
-      gap: 4px;
     }
 
     .theme-btn {
@@ -154,9 +188,194 @@
       border-color: var(--theme-border-color-hover);
     }
 
+    .theme-picker-trigger {
+      min-width: 110px;
+      text-align: left;
+    }
+
+    .theme-modal {
+      position: absolute;
+      inset: 0;
+      display: none;
+      align-items: center;
+      justify-content: center;
+      background: rgba(0, 0, 0, 0.35);
+      z-index: 30;
+      -webkit-app-region: no-drag;
+    }
+
+    .theme-modal.show {
+      display: flex;
+    }
+
+    .theme-modal-content {
+      width: min(240px, calc(100% - 30px));
+      max-height: min(200px, calc(100% - 24px));
+      background: var(--theme-background);
+      border: 1px solid var(--theme-border-color-hover);
+      border-radius: 8px;
+      padding: 10px;
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+      box-shadow: 0 8px 24px rgba(0, 0, 0, 0.45);
+      overflow: hidden;
+    }
+
+    .theme-modal-header {
+      font-size: 11px;
+      color: var(--theme-text-opacity);
+    }
+
+    .theme-modal-list {
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
+      max-height: 130px;
+      overflow-y: auto;
+      overscroll-behavior: contain;
+      -ms-scroll-chaining: none;
+      scrollbar-width: thin;
+      scrollbar-color: rgba(255, 255, 255, 0.25) transparent;
+      padding-right: 2px;
+    }
+
+    .theme-modal-list::-webkit-scrollbar {
+      width: 8px;
+      background: transparent;
+    }
+
+    .theme-modal-list::-webkit-scrollbar-track {
+      background: transparent;
+    }
+
+    .theme-modal-list::-webkit-scrollbar-thumb {
+      background: rgba(255, 255, 255, 0.22);
+      border-radius: 8px;
+      border: 2px solid transparent;
+      background-clip: padding-box;
+    }
+
+    .theme-modal-list::-webkit-scrollbar-thumb:hover {
+      background: rgba(255, 255, 255, 0.32);
+    }
+
+    .theme-option {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding: 6px 8px;
+      border: 1px solid var(--theme-border-color);
+      border-radius: 6px;
+      background: var(--theme-button-bg);
+      color: var(--theme-text-primary);
+      font-family: 'Pixelify Sans', sans-serif;
+      font-size: 11px;
+      cursor: pointer;
+    }
+
+    .theme-option:hover {
+      background: var(--theme-button-bg-hover);
+      border-color: var(--theme-border-color-hover);
+    }
+
+    .theme-option.active {
+      background: var(--theme-button-bg-active);
+      border-color: var(--theme-border-color-hover);
+    }
+
+    .theme-option-label {
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+
+    .theme-option-status {
+      font-size: 10px;
+      color: var(--theme-text-opacity);
+      margin-left: 8px;
+      flex-shrink: 0;
+    }
+
     .runtime-display {
       font-size: 11px;
       color: var(--theme-text-opacity);
+    }
+
+    .spotify-setup-grid {
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+    }
+
+    .spotify-setup-actions {
+      display: flex;
+      gap: 6px;
+      flex-wrap: wrap;
+    }
+
+    .spotify-input {
+      width: 100%;
+      box-sizing: border-box;
+      padding: 8px 10px;
+      background: rgba(255, 255, 255, 0.04);
+      border: 1px solid var(--theme-border-color);
+      border-radius: 6px;
+      color: var(--theme-text-primary);
+      font-size: 11px;
+      font-family: 'Pixelify Sans', sans-serif;
+    }
+
+    .spotify-input[readonly] {
+      color: var(--theme-text-opacity);
+    }
+    .tooltip-trigger {
+      width: 20px;
+      height: 20px;
+      padding: 0;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      background: var(--theme-button-bg);
+      border: 1px solid var(--theme-border-color);
+      border-radius: 4px;
+      cursor: pointer;
+      transition: all 0.2s;
+    }
+
+    .tooltip-trigger:hover {
+      background: var(--theme-button-bg-hover);
+      border-color: var(--theme-border-color-hover);
+    }
+
+    .tooltip-trigger:active {
+      background: var(--theme-button-bg-active);
+    }
+
+    .tooltip-trigger img {
+      width: 16px;
+      height: 16px;
+      display: block;
+    }
+
+    .spotify-tooltip {
+      position: absolute;
+      top: calc(100% + 8px);
+      right: 0;
+      width: 220px;
+      padding: 10px 12px;
+      background: var(--theme-background);
+      border-radius: 8px;
+      backdrop-filter: blur(6px);
+      color: var(--theme-text-primary);
+      font-size: 11px;
+      line-height: 1.5;
+      display: none;
+      z-index: 20;
+    }
+
+    .spotify-tooltip.show {
+      display: block;
     }
 
     .settings-buttons {
@@ -256,27 +475,91 @@
     .confirm-dialog-buttons .confirm-yes:hover {
       background: var(--theme-accent-danger-hover);
     }
+
+    .cache-dialog {
+      display: none;
+      flex-direction: column;
+      gap: 10px;
+      border: 1px solid var(--theme-border-color);
+      border-radius: 8px;
+      padding: 10px;
+      background: rgba(255, 255, 255, 0.03);
+      -webkit-app-region: no-drag;
+    }
+
+    .cache-dialog.show {
+      display: flex;
+    }
+
+    .cache-dialog-title {
+      font-size: 12px;
+      color: var(--theme-text-primary);
+    }
+
+    .cache-dialog-list {
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
+      max-height: 190px;
+      overflow-y: auto;
+      padding-right: 4px;
+    }
+
+    .cache-dialog-item {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      font-size: 11px;
+      color: var(--theme-text-opacity);
+    }
+
+    .cache-dialog-item input {
+      margin: 0;
+    }
+
+    .cache-dialog-actions {
+      display: flex;
+      gap: 8px;
+    }
+
+    .cache-dialog-actions button {
+      flex: 1;
+      padding: 6px 8px;
+      border: 1px solid var(--theme-border-color);
+      border-radius: 4px;
+      background: var(--theme-button-bg);
+      color: var(--theme-text-primary);
+      font-family: 'Pixelify Sans', sans-serif;
+      font-size: 10px;
+      cursor: pointer;
+    }
+
+    .cache-dialog-actions button:hover {
+      background: var(--theme-button-bg-hover);
+      border-color: var(--theme-border-color-hover);
+    }
   </style>
 </head>
 <body>
   <div class="settings-container">
     <div class="settings-header">
-      <div class="settings-title">Settings</div>
+      <div class="settings-title" id="settingsTitle">Settings</div>
       <button class="settings-close-btn" id="closeSettingsBtn" title="Close">✕</button>
     </div>
-    <div class="settings-section">
-      <!-- Theme Toggle -->
+    <div class="settings-section" id="settingsMainSection">
+      <!-- Theme -->
       <div class="settings-item">
         <span class="settings-label">Theme:</span>
-        <div class="theme-toggle">
-          <button class="theme-btn active" id="darkTheme">Dark</button>
-          <button class="theme-btn" id="lightTheme">Light</button>
-        </div>
+        <button class="theme-btn theme-picker-trigger" id="themePickerBtn">Select Theme</button>
+      </div>
+      <div class="settings-item">
+        <span class="settings-label">Pet:</span>
+        <button class="theme-btn theme-picker-trigger" id="petPickerBtn">Select Pet</button>
       </div>
       <!-- Source Mode Toggle -->
       <div class="settings-item">
         <span class="settings-label">Source:</span>
-        <div class="theme-toggle">
+        <div style="display: flex; gap: 4px;">
           <button class="theme-btn active" id="spotifySource">Spotify</button>
           <button class="theme-btn" id="localSource">Local Files</button>
         </div>
@@ -304,16 +587,61 @@
         <span class="settings-label">Build:</span>
         <span class="runtime-display" id="buildInfo">Electron -</span>
       </div>
+      <div class="settings-item">
+        <span class="settings-label">Spotify API:</span>
+        <span class="runtime-display" id="spotifyApiUsage">Last 60s: 0 requests (cap 60/min)</span>
+      </div>
       <!-- Patch Notes Button -->
       <div class="settings-item">
         <span class="settings-label">Patch Notes:</span>
         <button class="theme-btn" id="viewPatchBtn" style="padding: 2px 6px; font-size: 11px;">View</button>
+      </div>
+      <div class="settings-item">
+        <span class="settings-label">How to Use:</span>
+        <button class="theme-btn" id="openOnboardingBtn" style="padding: 2px 6px; font-size: 11px;">Open</button>
+      </div>
+      <div class="settings-item">
+        <span class="settings-label">Spotify Setup:</span>
+        <button class="theme-btn" id="openSetupBtn" style="padding: 2px 6px; font-size: 11px;">Open</button>
+      </div>
+      <div class="settings-item">
+        <span class="settings-label">Support:</span>
+        <button class="theme-btn" id="supportBtn" style="padding: 2px 6px; font-size: 11px;">Buy Me a Coffee</button>
+      </div>
+    </div>
+    <div class="theme-modal" id="themeModal">
+      <div class="theme-modal-content">
+        <div class="theme-modal-header" id="themeModalHeader">Current: Dark</div>
+        <div class="theme-modal-list" id="themeModalList"></div>
+      </div>
+    </div>
+    <div class="theme-modal" id="petModal">
+      <div class="theme-modal-content">
+        <div class="theme-modal-header" id="petModalHeader">Current: None</div>
+        <div class="theme-modal-list" id="petModalList"></div>
       </div>
     </div>
     <!-- Action Buttons -->
     <div class="settings-buttons">
       <button class="settings-btn danger" id="signOutBtn">Sign Out</button>
       <button class="settings-btn" id="clearCacheBtn">Clear Cache</button>
+    </div>
+    <div class="cache-dialog" id="cacheDialog">
+      <div class="cache-dialog-title">Choose data to clear</div>
+      <div class="cache-dialog-list" id="cacheDialogList">
+        <label class="cache-dialog-item"><input type="checkbox" id="cacheSelectAll"> <strong>Select All</strong></label>
+        <label class="cache-dialog-item"><input type="checkbox" class="cache-option" value="spotifyAuth"> Spotify auth tokens/session</label>
+        <label class="cache-dialog-item"><input type="checkbox" class="cache-option" value="spotifyClientId"> Spotify Client ID</label>
+        <label class="cache-dialog-item"><input type="checkbox" class="cache-option" value="updatePrompts"> Update prompt reminders</label>
+        <label class="cache-dialog-item"><input type="checkbox" class="cache-option" value="onboarding"> Onboarding completion state</label>
+        <label class="cache-dialog-item"><input type="checkbox" class="cache-option" value="theme"> Theme preference</label>
+        <label class="cache-dialog-item"><input type="checkbox" class="cache-option" value="sourceMode"> Source mode preference</label>
+        <label class="cache-dialog-item"><input type="checkbox" class="cache-option" value="localAudio"> Imported local audio + active selection</label>
+        <label class="cache-dialog-item"><input type="checkbox" class="cache-option" value="runtime"> App runtime counters</label>
+      </div>
+      <div class="cache-dialog-actions">
+        <button id="cacheDialogApplyBtn">Clear Selected</button>
+      </div>
     </div>
   </div>
 
@@ -326,25 +654,50 @@
   </div>
 
   <script>
-    const darkTheme = document.getElementById('darkTheme');
-    const lightTheme = document.getElementById('lightTheme');
+    const themePickerBtn = document.getElementById('themePickerBtn');
+    const themeModal = document.getElementById('themeModal');
+    const themeModalHeader = document.getElementById('themeModalHeader');
+    const themeModalList = document.getElementById('themeModalList');
+    const petPickerBtn = document.getElementById('petPickerBtn');
+    const petModal = document.getElementById('petModal');
+    const petModalHeader = document.getElementById('petModalHeader');
+    const petModalList = document.getElementById('petModalList');
     const spotifySource = document.getElementById('spotifySource');
     const localSource = document.getElementById('localSource');
     const runtimeDisplay = document.getElementById('runtime');
     const versionDisplay = document.getElementById('version');
     const buildInfoDisplay = document.getElementById('buildInfo');
+    const spotifyApiUsageDisplay = document.getElementById('spotifyApiUsage');
     const checkUpdatesBtn = document.getElementById('checkUpdatesBtn');
     const updateStatusDisplay = document.getElementById('updateStatus');
     const signOutBtn = document.getElementById('signOutBtn');
     const closeSettingsBtn = document.getElementById('closeSettingsBtn');
+    const settingsTitle = document.getElementById('settingsTitle');
+    const settingsMainSection = document.getElementById('settingsMainSection');
+    const settingsButtons = document.querySelector('.settings-buttons');
+    const settingsContainer = document.querySelector('.settings-container');
     const confirmDialog = document.getElementById('confirmDialog');
     const confirmMessage = document.getElementById('confirmMessage');
     const confirmYes = document.getElementById('confirmYes');
     const confirmNo = document.getElementById('confirmNo');
     const clearCacheBtn = document.getElementById('clearCacheBtn');
     const viewPatchBtn = document.getElementById('viewPatchBtn');
+    const openOnboardingBtn = document.getElementById('openOnboardingBtn');
+    const openSetupBtn = document.getElementById('openSetupBtn');
+    const supportBtn = document.getElementById('supportBtn');
+    const cacheDialog = document.getElementById('cacheDialog');
+    const cacheSelectAll = document.getElementById('cacheSelectAll');
+    const cacheOptionNodes = Array.from(document.querySelectorAll('.cache-option'));
+    const cacheDialogApplyBtn = document.getElementById('cacheDialogApplyBtn');
 
     let confirmAction = null;
+    let activeTheme = 'dark';
+    let activePet = 'none';
+    const themeCatalog = window.availableThemes || { dark: { label: 'Dark' }, light: { label: 'Light' } };
+    const petCatalog = {
+      none: { label: 'None' },
+      sleepycat: { label: 'Sleepy Cat' }
+    };
 
     // Format time from milliseconds
     function formatTime(ms) {
@@ -383,7 +736,39 @@
 
     loadVersionInfo();
 
+    function updateSpotifyApiUsage() {
+      if (!window.api || !window.api.getSpotifyApiUsageStatus) {
+        return;
+      }
+
+      window.api.getSpotifyApiUsageStatus().then((status) => {
+        const current = Number(status?.requestsPerMinute || 0);
+        const cap = Number(status?.maxRequestsPerMinute || 60);
+        spotifyApiUsageDisplay.textContent = `Last 60s: ${current} requests (cap ${cap}/min)`;
+      }).catch(() => {
+        spotifyApiUsageDisplay.textContent = '--';
+      });
+    }
+
+    updateSpotifyApiUsage();
+    setInterval(updateSpotifyApiUsage, 1000);
+
     closeSettingsBtn.addEventListener('click', async () => {
+      if (petModal.classList.contains('show')) {
+        closePetModal();
+        return;
+      }
+
+      if (themeModal.classList.contains('show')) {
+        closeThemeModal();
+        return;
+      }
+
+      if (cacheDialog.classList.contains('show')) {
+        closeCacheDialog();
+        return;
+      }
+
       try {
         await window.api.toggleSettings();
       } catch (err) {
@@ -411,8 +796,15 @@
           updateStatusDisplay.textContent = 'Checking...';
           checkUpdatesBtn.style.display = 'none';
         } else if (status === 'available') {
-          updateStatusDisplay.textContent = `Downloading...`;
-          checkUpdatesBtn.style.display = 'none';
+          updateStatusDisplay.textContent = 'Available';
+          checkUpdatesBtn.textContent = 'Download';
+          checkUpdatesBtn.style.display = '';
+          checkUpdatesBtn.disabled = false;
+          checkUpdatesBtn.onclick = async () => {
+            checkUpdatesBtn.style.display = 'none';
+            updateStatusDisplay.textContent = 'Downloading...';
+            await window.api.downloadUpdate();
+          };
         } else if (status === 'downloading') {
           const progress = info.downloadProgress;
           const percent = Math.round(progress.percent);
@@ -427,7 +819,7 @@
             await window.api.installUpdate();
           };
         } else if (status === 'not-available') {
-          updateStatusDisplay.textContent = '';
+          updateStatusDisplay.textContent = 'Up to date';
           checkUpdatesBtn.textContent = 'Check';
           checkUpdatesBtn.style.display = '';
           checkUpdatesBtn.disabled = false;
@@ -455,8 +847,15 @@
     if (window.api && window.api.getUpdateStatus) {
       window.api.getUpdateStatus().then(({ status, info }) => {
         if (status === 'available') {
-          updateStatusDisplay.textContent = `Downloading...`;
-          checkUpdatesBtn.style.display = 'none';
+          updateStatusDisplay.textContent = 'Available';
+          checkUpdatesBtn.textContent = 'Download';
+          checkUpdatesBtn.style.display = '';
+          checkUpdatesBtn.disabled = false;
+          checkUpdatesBtn.onclick = async () => {
+            checkUpdatesBtn.style.display = 'none';
+            updateStatusDisplay.textContent = 'Downloading...';
+            await window.api.downloadUpdate();
+          };
         } else if (status === 'downloading') {
           const progress = info.downloadProgress;
           const percent = Math.round(progress.percent);
@@ -469,24 +868,139 @@
           checkUpdatesBtn.onclick = async () => {
             await window.api.installUpdate();
           };
+        } else if (status === 'not-available') {
+          updateStatusDisplay.textContent = 'Up to date';
+          checkUpdatesBtn.textContent = 'Check';
+          checkUpdatesBtn.style.display = '';
         }
       });
     }
 
-    // Theme toggle
-    darkTheme.addEventListener('click', () => {
-      darkTheme.classList.add('active');
-      lightTheme.classList.remove('active');
-      if (window.api && window.api.setTheme) {
-        window.api.setTheme('dark').catch(err => console.error('Failed to set theme:', err));
+    function getThemeLabel(themeKey) {
+      const theme = themeCatalog[themeKey];
+      if (!theme) {
+        return themeKey;
+      }
+      return theme.label || theme.name || themeKey;
+    }
+
+    function updateThemePickerSummary() {
+      themePickerBtn.textContent = getThemeLabel(activeTheme);
+      themeModalHeader.textContent = `Current: ${getThemeLabel(activeTheme)}`;
+    }
+
+    function renderThemeOptions() {
+      themeModalList.innerHTML = '';
+      Object.keys(themeCatalog).forEach((themeKey) => {
+        const option = document.createElement('button');
+        option.type = 'button';
+        option.className = `theme-option${themeKey === activeTheme ? ' active' : ''}`;
+        option.innerHTML = `
+          <span class="theme-option-label">${getThemeLabel(themeKey)}</span>
+          <span class="theme-option-status">${themeKey === activeTheme ? 'Applied' : ''}</span>
+        `;
+        option.addEventListener('click', async () => {
+          if (window.api && window.api.setTheme) {
+            try {
+              await window.api.setTheme(themeKey);
+              activeTheme = themeKey;
+              updateThemePickerSummary();
+              renderThemeOptions();
+              closeThemeModal();
+            } catch (err) {
+              console.error('Failed to set theme:', err);
+            }
+          }
+        });
+        themeModalList.appendChild(option);
+      });
+    }
+
+    function openThemeModal() {
+      closePetModal();
+      renderThemeOptions();
+      themeModal.classList.add('show');
+      settingsContainer?.classList.add('modal-open');
+    }
+
+    function closeThemeModal() {
+      themeModal.classList.remove('show');
+      if (!petModal.classList.contains('show')) {
+        settingsContainer?.classList.remove('modal-open');
+      }
+    }
+
+    function getPetLabel(petKey) {
+      const pet = petCatalog[petKey];
+      if (!pet) {
+        return petKey;
+      }
+      return pet.label || petKey;
+    }
+
+    function updatePetPickerSummary() {
+      petPickerBtn.textContent = getPetLabel(activePet);
+      petModalHeader.textContent = `Current: ${getPetLabel(activePet)}`;
+    }
+
+    function renderPetOptions() {
+      petModalList.innerHTML = '';
+      Object.keys(petCatalog).forEach((petKey) => {
+        const option = document.createElement('button');
+        option.type = 'button';
+        option.className = `theme-option${petKey === activePet ? ' active' : ''}`;
+        option.innerHTML = `
+          <span class="theme-option-label">${getPetLabel(petKey)}</span>
+          <span class="theme-option-status">${petKey === activePet ? 'Applied' : ''}</span>
+        `;
+        option.addEventListener('click', async () => {
+          if (window.api && window.api.setPetSelection) {
+            try {
+              await window.api.setPetSelection(petKey);
+              activePet = petKey;
+              updatePetPickerSummary();
+              renderPetOptions();
+              closePetModal();
+            } catch (err) {
+              console.error('Failed to set pet selection:', err);
+            }
+          }
+        });
+        petModalList.appendChild(option);
+      });
+    }
+
+    function openPetModal() {
+      closeThemeModal();
+      renderPetOptions();
+      petModal.classList.add('show');
+      settingsContainer?.classList.add('modal-open');
+    }
+
+    function closePetModal() {
+      petModal.classList.remove('show');
+      if (!themeModal.classList.contains('show')) {
+        settingsContainer?.classList.remove('modal-open');
+      }
+    }
+
+    themePickerBtn.addEventListener('click', () => {
+      openThemeModal();
+    });
+
+    petPickerBtn.addEventListener('click', () => {
+      openPetModal();
+    });
+
+    themeModal.addEventListener('click', (event) => {
+      if (event.target === themeModal) {
+        closeThemeModal();
       }
     });
 
-    lightTheme.addEventListener('click', () => {
-      lightTheme.classList.add('active');
-      darkTheme.classList.remove('active');
-      if (window.api && window.api.setTheme) {
-        window.api.setTheme('light').catch(err => console.error('Failed to set theme:', err));
+    petModal.addEventListener('click', (event) => {
+      if (event.target === petModal) {
+        closePetModal();
       }
     });
     // Source mode toggle
@@ -535,23 +1049,79 @@
     });
 
     // Clear cache button
-    clearCacheBtn.addEventListener('click', () => {
-      showConfirm('Clear all stored credentials? You will need to log in again.', async () => {
+    function resetCacheDialogSelection() {
+      cacheOptionNodes.forEach((node) => {
+        node.checked = false;
+      });
+      cacheSelectAll.checked = false;
+    }
+
+    function openCacheDialog() {
+      resetCacheDialogSelection();
+      const container = document.querySelector('.settings-container');
+      if (container) {
+        container.scrollTop = 0;
+      }
+      settingsTitle.textContent = 'Clear Cache';
+      settingsMainSection.style.display = 'none';
+      settingsButtons.style.display = 'none';
+      closeSettingsBtn.textContent = 'Back';
+      closeSettingsBtn.title = 'Back';
+      closeSettingsBtn.classList.add('back-mode');
+      cacheDialog.classList.add('show');
+    }
+
+    function closeCacheDialog() {
+      cacheDialog.classList.remove('show');
+      settingsMainSection.style.display = '';
+      settingsButtons.style.display = 'flex';
+      settingsTitle.textContent = 'Settings';
+      closeSettingsBtn.textContent = '✕';
+      closeSettingsBtn.title = 'Close';
+      closeSettingsBtn.classList.remove('back-mode');
+    }
+
+    clearCacheBtn.addEventListener('click', openCacheDialog);
+
+    cacheSelectAll.addEventListener('change', () => {
+      cacheOptionNodes.forEach((node) => {
+        node.checked = cacheSelectAll.checked;
+      });
+    });
+
+    cacheOptionNodes.forEach((node) => {
+      node.addEventListener('change', () => {
+        cacheSelectAll.checked = cacheOptionNodes.every((option) => option.checked);
+      });
+    });
+
+    cacheDialogApplyBtn.addEventListener('click', async () => {
+      const selectedOptions = cacheOptionNodes
+        .filter((node) => node.checked)
+        .map((node) => node.value);
+
+      if (!selectedOptions.length) {
+        closeCacheDialog();
+        return;
+      }
+
+      closeCacheDialog();
+      showConfirm(`Clear ${selectedOptions.length} selected item(s)?`, async () => {
         try {
-          const result = await window.api.clearCache();
+          const result = await window.api.clearSelectedCache(selectedOptions);
           if (result.success) {
-            confirmMessage.textContent = result.message;
-            // Don't hide - let user see the message, then they can click OK
+            confirmMessage.textContent = `${result.message} Restart app now?`;
             confirmYes.textContent = 'Restart Now';
             confirmYes.onclick = () => {
               window.api.restartApp();
             };
-            confirmNo.style.display = 'none';
+            confirmNo.style.display = 'block';
+            confirmNo.textContent = 'Later';
           } else {
             confirmMessage.textContent = result.message;
           }
         } catch (err) {
-          console.error('Clear cache failed', err);
+          console.error('Clear selected cache failed', err);
           confirmMessage.textContent = `Error: ${err.message}`;
         }
       });
@@ -563,6 +1133,30 @@
         await window.api.openPatchWindow();
       } catch (err) {
         console.error('Failed to open patch window:', err);
+      }
+    });
+
+    openOnboardingBtn.addEventListener('click', async () => {
+      try {
+        await window.api.toggleOnboarding();
+      } catch (err) {
+        console.error('Failed to open onboarding:', err);
+      }
+    });
+
+    openSetupBtn.addEventListener('click', async () => {
+      try {
+        await window.api.toggleSetup();
+      } catch (err) {
+        console.error('Failed to open Spotify setup window:', err);
+      }
+    });
+
+    supportBtn.addEventListener('click', async () => {
+      try {
+        await window.api.openBuyMeACoffee?.();
+      } catch (err) {
+        console.error('Failed to open Buy Me a Coffee:', err);
       }
     });
 
@@ -579,6 +1173,7 @@
       // Reset buttons
       confirmYes.textContent = 'Confirm';
       confirmYes.onclick = null;
+      confirmNo.textContent = 'Cancel';
       confirmNo.style.display = 'block';
     }
 
@@ -615,19 +1210,25 @@
     async function loadThemePreference() {
       if (window.api && window.api.getTheme) {
         const theme = await window.api.getTheme().catch(() => 'dark');
-        if (theme === 'light') {
-          lightTheme.classList.add('active');
-          darkTheme.classList.remove('active');
-        } else {
-          darkTheme.classList.add('active');
-          lightTheme.classList.remove('active');
-        }
+        activeTheme = theme;
+        updateThemePickerSummary();
+        renderThemeOptions();
+      }
+    }
+
+    async function loadPetPreference() {
+      if (window.api && window.api.getPetSelection) {
+        const pet = await window.api.getPetSelection().catch(() => 'none');
+        activePet = pet;
+        updatePetPickerSummary();
+        renderPetOptions();
       }
     }
 
     async function loadPreferences() {
       await Promise.all([
         loadThemePreference(),
+        loadPetPreference(),
         loadSourceModePreference()
       ]);
     }
@@ -641,7 +1242,11 @@
     // Initialize theme
     initThemeVariables();
     loadInitialTheme();
-    setupThemeListener();
+    setupThemeListener((theme) => {
+      activeTheme = theme;
+      updateThemePickerSummary();
+      renderThemeOptions();
+    });
   </script>
 </body>
 </html>

@@ -14,8 +14,11 @@ const logger = require('../context/logger');
 const registerQueueWindow = require('./queue');
 const registerMoreWindow = require('./more');
 const registerSettingsWindow = require('./settings');
+const registerSetupWindow = require('./set');
+const registerOnboardingWindow = require('./onboarding');
 const registerLocalWindow = require('./local');
 const registerPatchWindow = require('./patch');
+const registerPetWindow = require('./pet');
 
 // ===== Secure storage =====
 const keytar = require('keytar');
@@ -26,11 +29,9 @@ const express = require('express');
 const fetch = (...args) => import('node-fetch').then(({ default: f }) => f(...args));
 const crypto = require('crypto');
 
-// --- Config (set these) ---
-const CLIENT_ID = process.env.SPOTIFY_CLIENT_ID;
-if (!CLIENT_ID) {
-  throw new Error('Missing SPOTIFY_CLIENT_ID in .env');
-}
+// --- Config ---
+const DEFAULT_SPOTIFY_CLIENT_ID = (process.env.SPOTIFY_CLIENT_ID || '').trim();
+const ALLOW_ENV_SPOTIFY_CLIENT_ID = String(process.env.MINIBOX_ALLOW_ENV_SPOTIFY_CLIENT_ID || '').trim().toLowerCase() === 'true';
 const AUTH_PORT = Number.parseInt(process.env.MINIBOX_AUTH_PORT || '5173', 10);
 const AUTH_HOST = '127.0.0.1';
 const REDIRECT_URI = `http://${AUTH_HOST}:${AUTH_PORT}/callback`;
@@ -40,9 +41,65 @@ const SCOPES = [
   'user-modify-playback-state'
 ].join(' ');
 
-// Per-client account key for keytar
-const ACCOUNT = `refresh:${CLIENT_ID}`;
 const AUDIO_FILE_EXTENSIONS = new Set(['.mp3', '.wav', '.flac', '.ogg', '.m4a', '.aac']);
+
+function getStoredSpotifyClientId() {
+  return storage.getSpotifyClientId();
+}
+
+function getConfiguredSpotifyClientId() {
+  const storedClientId = getStoredSpotifyClientId();
+  if (storedClientId) {
+    return storedClientId;
+  }
+
+  if (!app.isPackaged && ALLOW_ENV_SPOTIFY_CLIENT_ID && DEFAULT_SPOTIFY_CLIENT_ID) {
+    return DEFAULT_SPOTIFY_CLIENT_ID;
+  }
+
+  return '';
+}
+
+function isUsingBundledSpotifyClientId() {
+  return !getStoredSpotifyClientId()
+    && !app.isPackaged
+    && ALLOW_ENV_SPOTIFY_CLIENT_ID
+    && !!DEFAULT_SPOTIFY_CLIENT_ID;
+}
+
+function requireConfiguredSpotifyClientId() {
+  const clientId = getConfiguredSpotifyClientId();
+  if (!clientId) {
+    throw new Error('Spotify Client ID is not configured. Open Settings and add your own Client ID first.');
+  }
+  return clientId;
+}
+
+function getRefreshTokenAccount(clientId = getConfiguredSpotifyClientId()) {
+  return clientId ? `refresh:${clientId}` : null;
+}
+
+function clearInMemorySpotifyTokens() {
+  accessToken = null;
+  refreshToken = null;
+  tokenExpiry = 0;
+}
+
+function isValidSpotifyClientId(clientId) {
+  return /^[a-f0-9]{32}$/i.test(clientId);
+}
+
+function getSpotifySetupInfo() {
+  const savedClientId = getStoredSpotifyClientId();
+  const effectiveClientId = getConfiguredSpotifyClientId();
+  return {
+    clientId: savedClientId,
+    effectiveClientId,
+    hasConfiguredClientId: !!effectiveClientId,
+    usingBundledClientId: isUsingBundledSpotifyClientId(),
+    redirectUri: REDIRECT_URI,
+  };
+}
 
 function normalizeAndDedupePaths(paths = []) {
   return [...new Set(
@@ -351,10 +408,11 @@ function broadcastLocalPlaybackStateChanged(state) {
 }
 
 async function refresh() {
-  if (!refreshToken) return;
+  const clientId = getConfiguredSpotifyClientId();
+  if (!refreshToken || !clientId) return;
 
   const body = new URLSearchParams({
-    client_id: CLIENT_ID,
+    client_id: clientId,
     grant_type: 'refresh_token',
     refresh_token: refreshToken
   });
@@ -370,10 +428,11 @@ async function refresh() {
   if (j.error) {
     const err = createSpotifyAuthError(j, r.status);
     if (isInvalidGrantAuthError(err)) {
-      await clearRefreshToken();
-      refreshToken = null;
-      accessToken  = null;
-      tokenExpiry  = 0;
+      await resetSpotifyAuthState({
+        clientId,
+        clearStoredRefreshToken: true,
+        notifyLoggedOut: true
+      });
     }
     throw err;
   }
@@ -391,17 +450,24 @@ async function refresh() {
 // ===== keytar helpers =====
 async function saveRefreshToken(rt) {
   if (!rt) { console.warn('[auth] saveRefreshToken called with empty value'); return; }
+  const account = getRefreshTokenAccount();
+  if (!account) { console.warn('[auth] saveRefreshToken skipped - no configured client id'); return; }
   try {
-    await keytar.setPassword(SERVICE, ACCOUNT, rt);
+    await keytar.setPassword(SERVICE, account, rt);
     console.log('[auth] refresh token saved (len:', rt.length, ')');
   } catch (e) {
     console.warn('[auth] keytar save failed:', e.message);
   }
 }
 
-async function loadRefreshToken() {
+async function loadRefreshToken(clientId = getConfiguredSpotifyClientId()) {
+  const account = getRefreshTokenAccount(clientId);
+  if (!account) {
+    return null;
+  }
+
   try {
-    const v = await keytar.getPassword(SERVICE, ACCOUNT);
+    const v = await keytar.getPassword(SERVICE, account);
     console.log('[auth] keytar load:', v ? `found (len: ${v.length})` : 'none');
     return v;
   } catch (e) {
@@ -410,9 +476,14 @@ async function loadRefreshToken() {
   }
 }
 
-async function clearRefreshToken() {
+async function clearRefreshToken(clientId = getConfiguredSpotifyClientId()) {
+  const account = getRefreshTokenAccount(clientId);
+  if (!account) {
+    return;
+  }
+
   try {
-    await keytar.deletePassword(SERVICE, ACCOUNT);
+    await keytar.deletePassword(SERVICE, account);
     console.log('[auth] keytar cleared');
   } catch (e) {
     console.warn('[auth] keytar clear failed:', e.message);
@@ -428,8 +499,10 @@ function newPKCE() {
 }
 
 function newPendingSpotifyAuth() {
+  const clientId = requireConfiguredSpotifyClientId();
   const { verifier, challenge } = newPKCE();
   return {
+    clientId,
     verifier,
     challenge,
     state: b64url(crypto.randomBytes(16)),
@@ -448,6 +521,39 @@ function setPendingSpotifyAuth(auth) {
 
 function clearPendingSpotifyAuth() {
   storage.setPendingSpotifyAuth(null);
+}
+
+function broadcastLoggedOut() {
+  if (win && !win.isDestroyed()) {
+    logger.log('auth', 'sending loggedOut to main window');
+    win.webContents.send('loggedOut');
+  }
+  if (moreWin && !moreWin.isDestroyed()) {
+    logger.log('auth', 'sending loggedOut to more window');
+    moreWin.webContents.send('loggedOut');
+  }
+  if (queueWin && !queueWin.isDestroyed()) {
+    logger.log('auth', 'sending loggedOut to queue window');
+    queueWin.webContents.send('loggedOut');
+  }
+  if (localWin && !localWin.isDestroyed()) {
+    logger.log('auth', 'sending loggedOut to local window');
+    localWin.webContents.send('loggedOut');
+  }
+}
+
+async function resetSpotifyAuthState({ clientId = getConfiguredSpotifyClientId(), clearStoredRefreshToken = false, notifyLoggedOut = false } = {}) {
+  clearPendingSpotifyAuth();
+  clearInMemorySpotifyTokens();
+  refreshToken = null;
+
+  if (clearStoredRefreshToken && clientId) {
+    await clearRefreshToken(clientId);
+  }
+
+  if (notifyLoggedOut) {
+    broadcastLoggedOut();
+  }
 }
 
 function createSpotifyAuthError(payload, status = 0) {
@@ -477,7 +583,7 @@ function authUrl({ forceDialog = false, authSession = getPendingSpotifyAuth() } 
   }
 
   const u = new URL('https://accounts.spotify.com/authorize');
-  u.searchParams.set('client_id', CLIENT_ID);
+  u.searchParams.set('client_id', authSession.clientId);
   u.searchParams.set('response_type', 'code');
   u.searchParams.set('redirect_uri', REDIRECT_URI);
   u.searchParams.set('scope', SCOPES);
@@ -504,7 +610,7 @@ async function exchangeCodeForToken(code, state) {
   }
 
   const body = new URLSearchParams({
-    client_id: CLIENT_ID,
+    client_id: pendingAuth.clientId,
     grant_type: 'authorization_code',
     code,
     redirect_uri: REDIRECT_URI,
@@ -529,7 +635,7 @@ async function exchangeCodeForToken(code, state) {
   tokenExpiry  = Date.now() + (j.expires_in - 30) * 1000;
 
   // persist for future launches
-  await saveRefreshToken(refreshToken);
+  await saveRefreshToken(refreshToken, pendingAuth.clientId);
   clearPendingSpotifyAuth();
 }
 
@@ -540,6 +646,7 @@ async function ensureToken() {
 async function callSpotify(method, url, body) {
   await ensureToken();
   if (!accessToken) throw new Error('Not authenticated');
+  recordSpotifyApiRequest();
 
   const res = await fetch(`https://api.spotify.com/v1${url}`, {
     method,
@@ -557,12 +664,18 @@ async function callSpotify(method, url, body) {
 
   if (!res.ok) {
     const errText = await res.text();
+    const retryAfterHeader = Number.parseInt(res.headers.get('retry-after') || '', 10);
+    const retryAfterSeconds = Number.isFinite(retryAfterHeader) ? retryAfterHeader : null;
+    let parsedMessage = errText;
     try {
       const errJson = JSON.parse(errText);
-      throw new Error(`${res.status} ${res.statusText}: ${errJson.error?.message || errText}`);
-    } catch {
-      throw new Error(`${res.status} ${res.statusText}: ${errText}`);
-    }
+      parsedMessage = errJson.error?.message || errText;
+    } catch {}
+
+    const err = new Error(`${res.status} ${res.statusText}: ${parsedMessage}`);
+    err.status = res.status;
+    err.retryAfterSeconds = retryAfterSeconds;
+    throw err;
   }
 
   if (res.status === 204 || res.headers.get('content-length') === '0') return null;
@@ -581,15 +694,43 @@ let win; // forward-declared so we can notify renderer
 let queueWin; // queue window
 let moreWin; // more menu window
 let settingsWin; // settings window
+let setupWin; // spotify setup window
+let onboardingWin; // onboarding window
 let localWin; // local audio window
 let patchWin; // patch notes window
+let petWin; // desktop pet window
 
 // App state
 let appStartTime = Date.now(); // always start fresh for this session
 let currentTheme = storage.getTheme(); // load saved theme
 let currentSourceMode = storage.getSourceMode(); //load saved playback source 
+let currentPetSelection = storage.getPetSelection(); // load saved pet
 let updateStatus = 'idle'; // idle, checking, available, not-available, downloading, ready
 let updateInfo = null; // holds update info if available
+let spotifyCurrentBackoffUntil = 0;
+const SPOTIFY_RATE_LIMIT_MAX_BACKOFF_MS = 60000;
+const SPOTIFY_USAGE_WINDOW_MS = 60000;
+const SPOTIFY_REQUESTS_PER_MINUTE_CAP = 60;
+const spotifyRequestTimestamps = [];
+
+function recordSpotifyApiRequest() {
+  const now = Date.now();
+  spotifyRequestTimestamps.push(now);
+  while (spotifyRequestTimestamps.length && (now - spotifyRequestTimestamps[0]) > SPOTIFY_USAGE_WINDOW_MS) {
+    spotifyRequestTimestamps.shift();
+  }
+}
+
+function getSpotifyApiUsageSnapshot() {
+  const now = Date.now();
+  while (spotifyRequestTimestamps.length && (now - spotifyRequestTimestamps[0]) > SPOTIFY_USAGE_WINDOW_MS) {
+    spotifyRequestTimestamps.shift();
+  }
+  return {
+    requestsPerMinute: spotifyRequestTimestamps.length,
+    maxRequestsPerMinute: SPOTIFY_REQUESTS_PER_MINUTE_CAP
+  };
+}
 
 authApp.get('/callback', async (req, res) => {
   try {
@@ -725,6 +866,15 @@ let authServer = null;
 let authServerReady = false;
 let authServerStartPromise = null;
 
+function broadcastSpotifySetupChanged(payload = getSpotifySetupInfo()) {
+  if (win && !win.isDestroyed()) win.webContents.send('spotifySetupChanged', payload);
+  if (settingsWin && !settingsWin.isDestroyed()) settingsWin.webContents.send('spotifySetupChanged', payload);
+  if (setupWin && !setupWin.isDestroyed()) setupWin.webContents.send('spotifySetupChanged', payload);
+  if (moreWin && !moreWin.isDestroyed()) moreWin.webContents.send('spotifySetupChanged', payload);
+  if (queueWin && !queueWin.isDestroyed()) queueWin.webContents.send('spotifySetupChanged', payload);
+  if (localWin && !localWin.isDestroyed()) localWin.webContents.send('spotifySetupChanged', payload);
+}
+
 function getAuthServerBaseUrl() {
   return `http://${AUTH_HOST}:${AUTH_PORT}`;
 }
@@ -771,8 +921,53 @@ function startAuthServer() {
   return authServerStartPromise;
 }
 
+async function applySpotifyClientId(nextClientId) {
+  const previousClientId = getConfiguredSpotifyClientId();
+  const normalizedClientId = typeof nextClientId === 'string' ? nextClientId.trim() : '';
+  const hadActiveAuth = !!accessToken || !!refreshToken;
+
+  if (normalizedClientId && !isValidSpotifyClientId(normalizedClientId)) {
+    throw new Error('Spotify Client ID must be a 32-character hexadecimal string.');
+  }
+
+  storage.setSpotifyClientId(normalizedClientId);
+  clearPendingSpotifyAuth();
+  clearInMemorySpotifyTokens();
+
+  const updatedClientId = getConfiguredSpotifyClientId();
+  if (previousClientId && previousClientId !== updatedClientId) {
+    await clearRefreshToken(previousClientId);
+  }
+
+  if (hadActiveAuth && previousClientId !== updatedClientId) {
+    broadcastLoggedOut();
+  }
+
+  const payload = getSpotifySetupInfo();
+  broadcastSpotifySetupChanged(payload);
+  return payload;
+}
+
 // ===== IPC =====
+ipcMain.handle('getSpotifySetupInfo', async () => {
+  return getSpotifySetupInfo();
+});
+
+ipcMain.handle('setSpotifyClientId', async (_event, clientId) => {
+  return applySpotifyClientId(clientId);
+});
+
+ipcMain.handle('openSpotifyDeveloperDashboard', async () => {
+  await shell.openExternal('https://developer.spotify.com/dashboard');
+  return true;
+});
+
 ipcMain.handle('login', async () => {
+  if (!getConfiguredSpotifyClientId()) {
+    createSetupWindow();
+    return false;
+  }
+
   try {
     await startAuthServer();
   } catch (err) {
@@ -785,7 +980,6 @@ ipcMain.handle('login', async () => {
   const authSession = setPendingSpotifyAuth(newPendingSpotifyAuth());
   const alreadyStored = await loadRefreshToken();        // check keychain
   const url = authUrl({ forceDialog: !alreadyStored, authSession });  // force consent only when needed
-  console.log('[auth] opening', url);
   await shell.openExternal(url);
   return true;
 });
@@ -793,6 +987,18 @@ ipcMain.handle('login', async () => {
 ipcMain.handle('isAuthed', async () => {
   try { await ensureToken(); } catch {}
   return !!accessToken;
+});
+
+ipcMain.handle('getSpotifyApiUsageStatus', async () => {
+  return getSpotifyApiUsageSnapshot();
+});
+
+ipcMain.handle('getSpotifyRateLimitStatus', async () => {
+  const remainingMs = Math.max(0, spotifyCurrentBackoffUntil - Date.now());
+  return {
+    isRateLimited: remainingMs > 0,
+    remainingMs
+  };
 });
 
 ipcMain.handle('getCurrent', async () => {
@@ -804,13 +1010,43 @@ ipcMain.handle('getCurrent', async () => {
     } : null;
   }
 
+  if (Date.now() < spotifyCurrentBackoffUntil) {
+    return null;
+  }
+
   try {
+    try {
+      await ensureToken();
+    } catch (authErr) {
+      logger.log('api', `getCurrent auth recovery failed: ${authErr.message}`);
+    }
+
     if (!accessToken) {
       logger.log('api', 'getCurrent called without authentication');
+      await resetSpotifyAuthState({ notifyLoggedOut: true });
       return null;
     }
+
     return await callSpotify('GET', '/me/player/currently-playing?market=from_token');
   } catch (err) {
+    if (!accessToken || isInvalidGrantAuthError(err)) {
+      await resetSpotifyAuthState({
+        clearStoredRefreshToken: isInvalidGrantAuthError(err),
+        notifyLoggedOut: true
+      });
+      return null;
+    }
+
+    if (err?.status === 429 || String(err?.message || '').startsWith('429')) {
+      const retryAfterMs = Math.min(
+        SPOTIFY_RATE_LIMIT_MAX_BACKOFF_MS,
+        Math.max(1000, Number(err?.retryAfterSeconds || 5) * 1000)
+      );
+      spotifyCurrentBackoffUntil = Date.now() + retryAfterMs;
+      logger.log('api', `getCurrent rate-limited; backing off for ${Math.round(retryAfterMs / 1000)}s`);
+      return null;
+    }
+
     logger.log('api', `getCurrent failed: ${err.message}`);
     throw err;
   }
@@ -906,14 +1142,10 @@ ipcMain.handle('rendererLog', async (_e, category, message) => {
 ipcMain.handle('clearCache', async () => {
   logger.log('cache', 'clearing all cached data and credentials');
   try {
-    // Clear refresh token from keytar
-    await clearRefreshToken();
-    clearPendingSpotifyAuth();
-    
-    // Clear in-memory tokens
-    accessToken = null;
-    refreshToken = null;
-    tokenExpiry = 0;
+    await resetSpotifyAuthState({ clearStoredRefreshToken: true, notifyLoggedOut: true });
+    await applySpotifyClientId('');
+    storage.setUpdateReminderAt(0);
+    storage.setDismissedUpdateVersion('');
     
     // Reset app start time
     storage.resetAppStartTime();
@@ -928,9 +1160,7 @@ ipcMain.handle('clearCache', async () => {
 
 ipcMain.handle('logout', async () => {
   logger.log('auth', 'logout initiated');
-  await clearRefreshToken();
-  clearPendingSpotifyAuth();
-  accessToken = null; refreshToken = null; tokenExpiry = 0;
+  await resetSpotifyAuthState({ clearStoredRefreshToken: true, notifyLoggedOut: false });
   
   // Close settings window on logout
   if (settingsWin && !settingsWin.isDestroyed()) {
@@ -941,28 +1171,18 @@ ipcMain.handle('logout', async () => {
   }
   
   // Broadcast logout to all windows
-  if (win) {
-    logger.log('auth', 'sending loggedOut to main window');
-    win.webContents.send('loggedOut');
-  }
-  if (moreWin && !moreWin.isDestroyed()) {
-    logger.log('auth', 'sending loggedOut to more window');
-    moreWin.webContents.send('loggedOut');
-  }
-  if (queueWin && !queueWin.isDestroyed()) {
-    logger.log('auth', 'sending loggedOut to queue window');
-    queueWin.webContents.send('loggedOut');
-  }
-  if (localWin && !localWin.isDestroyed()) {
-    logger.log('auth', 'sending loggedOut to local window');
-    localWin.webContents.send('loggedOut');
-  }
+  broadcastLoggedOut();
   logger.log('auth', 'logout complete');
   return true;
 });
 
 ipcMain.handle('openSpotifyAccount', async () => {
   await shell.openExternal('https://www.spotify.com/account/');
+  return true;
+});
+
+ipcMain.handle('openBuyMeACoffee', async () => {
+  await shell.openExternal('https://buymeacoffee.com/R0botMan');
   return true;
 });
 
@@ -976,11 +1196,6 @@ ipcMain.handle('restartApp', async () => {
   app.relaunch();
   app.quit();
   return true;
-});
-
-// ===== App Runtime & Theme =====
-ipcMain.handle('getAppRuntime', async () => {
-  return storage.getTotalRuntimeWithCurrentSession(appStartTime);
 });
 
 ipcMain.handle('setTheme', async (_e, theme) => {
@@ -1001,6 +1216,10 @@ ipcMain.handle('getTheme', async () => {
 
 ipcMain.handle('getSourceMode', async () => {
   return currentSourceMode;
+});
+
+ipcMain.handle('getPetSelection', async () => {
+  return currentPetSelection;
 });
 
 ipcMain.handle('setSourceMode', async (_e, mode) => {
@@ -1026,6 +1245,25 @@ ipcMain.handle('setSourceMode', async (_e, mode) => {
   if (localWin && !localWin.isDestroyed()) localWin.webContents.send('sourceModeChanged', mode);
 
   return mode;
+});
+
+ipcMain.handle('setPetSelection', async (_e, selection) => {
+  const allowedPets = new Set(['none', 'sleepycat']);
+  const nextSelection = String(selection || 'none').toLowerCase();
+  if (!allowedPets.has(nextSelection)) {
+    throw new Error(`Invalid pet selection: ${selection}`);
+  }
+
+  currentPetSelection = nextSelection;
+  storage.setPetSelection(nextSelection);
+
+  if (nextSelection === 'none') {
+    closePetWindow();
+    return currentPetSelection;
+  }
+
+  createPetWindow();
+  return currentPetSelection;
 });
 
 ipcMain.handle('getLocalAudioSources', async () => {
@@ -1261,11 +1499,136 @@ ipcMain.handle('checkForUpdates', async () => {
 });
 
 ipcMain.handle('getUpdateStatus', async () => {
-  return { status: updateStatus, info: updateInfo };
+  return {
+    status: updateStatus,
+    info: updateInfo,
+    reminderAt: storage.getUpdateReminderAt(),
+    dismissedVersion: storage.getDismissedUpdateVersion()
+  };
 });
 
 ipcMain.handle('installUpdate', async () => {
   autoUpdater.quitAndInstall();
+});
+
+ipcMain.handle('clearSelectedCache', async (_e, selections = []) => {
+  const selected = new Set(Array.isArray(selections) ? selections : []);
+  logger.log('cache', `clearSelectedCache requested: ${JSON.stringify([...selected])}`);
+
+  try {
+    if (selected.has('spotifyAuth')) {
+      await resetSpotifyAuthState({ clearStoredRefreshToken: true, notifyLoggedOut: true });
+    }
+
+    if (selected.has('spotifyClientId')) {
+      await applySpotifyClientId('');
+    }
+
+    if (selected.has('updatePrompts')) {
+      storage.setUpdateReminderAt(0);
+      storage.setDismissedUpdateVersion('');
+    }
+
+    if (selected.has('onboarding')) {
+      storage.setOnboardingCompleted(false);
+    }
+
+    if (selected.has('theme')) {
+      currentTheme = 'dark';
+      storage.setTheme('dark');
+      if (win && !win.isDestroyed()) win.webContents.send('themeChanged', 'dark');
+      if (moreWin && !moreWin.isDestroyed()) moreWin.webContents.send('themeChanged', 'dark');
+      if (queueWin && !queueWin.isDestroyed()) queueWin.webContents.send('themeChanged', 'dark');
+      if (settingsWin && !settingsWin.isDestroyed()) settingsWin.webContents.send('themeChanged', 'dark');
+      if (localWin && !localWin.isDestroyed()) localWin.webContents.send('themeChanged', 'dark');
+    }
+
+    if (selected.has('sourceMode')) {
+      currentSourceMode = 'spotify';
+      storage.setSourceMode('spotify');
+      if (win && !win.isDestroyed()) win.webContents.send('sourceModeChanged', 'spotify');
+      if (moreWin && !moreWin.isDestroyed()) moreWin.webContents.send('sourceModeChanged', 'spotify');
+      if (queueWin && !queueWin.isDestroyed()) queueWin.webContents.send('sourceModeChanged', 'spotify');
+      if (settingsWin && !settingsWin.isDestroyed()) settingsWin.webContents.send('sourceModeChanged', 'spotify');
+      if (localWin && !localWin.isDestroyed()) localWin.webContents.send('sourceModeChanged', 'spotify');
+    }
+
+    if (selected.has('localAudio')) {
+      setLocalAudioSources({ files: [], folders: [] });
+      storage.setActiveLocalAudioSource(null);
+      invalidateLocalAudioLibraryCache();
+      clearLocalPlaybackState();
+      broadcastLocalActiveSourceChanged({ source: null, autoplay: false });
+      broadcastLocalAudioSourcesChanged(getLocalAudioSources());
+    }
+
+    if (selected.has('runtime')) {
+      appStartTime = Date.now();
+      storage.resetAppStartTime();
+      storage.resetTotalRuntime();
+    }
+
+    logger.log('cache', 'selected cache data cleared successfully');
+    return { success: true, message: 'Selected data cleared.' };
+  } catch (err) {
+    logger.log('cache', `failed to clear selected cache data: ${err.message}`);
+    return { success: false, message: `Failed to clear selected data: ${err.message}` };
+  }
+});
+
+ipcMain.handle('downloadUpdate', async () => {
+  await autoUpdater.downloadUpdate();
+  return true;
+});
+
+ipcMain.handle('previewUpdateStatus', async (_e, status, info = {}) => {
+  if (app.isPackaged) {
+    throw new Error('previewUpdateStatus is only available in development mode');
+  }
+
+  const allowedStatuses = new Set(['idle', 'checking', 'available', 'downloading', 'ready', 'not-available', 'error']);
+  if (!allowedStatuses.has(status)) {
+    throw new Error(`Invalid preview update status: ${status}`);
+  }
+
+  updateStatus = status;
+  const baseInfo = info && typeof info === 'object' ? info : {};
+  updateInfo = { ...baseInfo, _isPreviewStatus: true };
+  broadcastUpdateStatus();
+  return { status: updateStatus, info: updateInfo };
+});
+
+ipcMain.handle('getOnboardingState', async () => {
+  return {
+    completed: storage.getOnboardingCompleted()
+  };
+});
+
+ipcMain.handle('completeOnboarding', async () => {
+  storage.setOnboardingCompleted(true);
+  return { completed: true };
+});
+
+ipcMain.handle('remindUpdateLater', async (_e, version, delayMs = 0) => {
+  const delay = Math.max(0, Number(delayMs) || 0);
+  const nextReminderAt = Date.now() + delay;
+  storage.setUpdateReminderAt(nextReminderAt);
+  storage.setDismissedUpdateVersion(String(version || ''));
+  return { reminderAt: nextReminderAt };
+});
+
+ipcMain.handle('dismissUpdateNotification', async (_e, version) => {
+  storage.setDismissedUpdateVersion(String(version || ''));
+  return { dismissedVersion: storage.getDismissedUpdateVersion() };
+});
+
+ipcMain.handle('clearUpdatePromptState', async () => {
+  storage.setUpdateReminderAt(0);
+  storage.setDismissedUpdateVersion('');
+  return {
+    reminderAt: storage.getUpdateReminderAt(),
+    dismissedVersion: storage.getDismissedUpdateVersion()
+  };
 });
 
 function broadcastUpdateStatus() {
@@ -1277,6 +1640,12 @@ function broadcastUpdateStatus() {
 }
 
 async function tryRestore() {
+  const clientId = getConfiguredSpotifyClientId();
+  if (!clientId) {
+    logger.log('auth', 'no spotify client id configured');
+    return false;
+  }
+
   const stored = await loadRefreshToken();
   if (!stored) { logger.log('auth', 'no stored refresh token found'); return false; }
   logger.log('auth', 'found stored refresh token');
@@ -1299,7 +1668,7 @@ async function tryRestore() {
     logger.log('auth', `stored refresh token failed: ${e.message}`);
     if (isInvalidGrantAuthError(e)) {
       refreshToken = null;
-      await clearRefreshToken();
+      await clearRefreshToken(clientId);
     }
     return false;
   }
@@ -1309,7 +1678,7 @@ async function tryRestore() {
 function createWindow() {
   win = new BrowserWindow({
     width: 380,
-    height: 190,
+    height: 200,
     frame: false,
     transparent: true,
     backgroundColor: '#00000000',
@@ -1335,7 +1704,6 @@ function createWindow() {
 
   win.loadFile(path.join(__dirname, '../renderer/index.html'));
   win.once('ready-to-show', () => win.show());
-  // win.webContents.openDevTools({ mode: 'detach' }); //optional
 }
 
 const { createQueueWindow, closeQueueWindow } = registerQueueWindow({
@@ -1420,6 +1788,57 @@ const { createSettingsWindow, closeSettingsWindow } = registerSettingsWindow({
   }
 });
 
+const { createSetupWindow, closeSetupWindow } = registerSetupWindow({
+  BrowserWindow,
+  ipcMain,
+  path,
+  baseDir: __dirname,
+  getMainWindow: () => win,
+  getSetupWindow: () => setupWin,
+  setSetupWindow: (nextWindow) => { setupWin = nextWindow; },
+  closeQueueWindow,
+  closeMoreWindow,
+  closeLocalWindow: () => {
+    if (localWin && !localWin.isDestroyed()) {
+      try {
+        localWin.close();
+      } catch (e) {}
+      localWin = null;
+    }
+  },
+  closeSettingsWindow,
+  closeOnboardingWindow: () => {
+    if (onboardingWin && !onboardingWin.isDestroyed()) {
+      try {
+        onboardingWin.close();
+      } catch (e) {}
+      onboardingWin = null;
+    }
+  }
+});
+
+const { createOnboardingWindow, closeOnboardingWindow } = registerOnboardingWindow({
+  BrowserWindow,
+  ipcMain,
+  path,
+  baseDir: __dirname,
+  getMainWindow: () => win,
+  getOnboardingWindow: () => onboardingWin,
+  setOnboardingWindow: (nextWindow) => { onboardingWin = nextWindow; },
+  closeQueueWindow,
+  closeMoreWindow,
+  closeLocalWindow: () => {
+    if (localWin && !localWin.isDestroyed()) {
+      try {
+        localWin.close();
+      } catch (e) {}
+      localWin = null;
+    }
+  },
+  closeSettingsWindow,
+  closeSetupWindow
+});
+
 const { createLocalWindow, closeLocalWindow, applyLocalWindowLayout } = registerLocalWindow({
   BrowserWindow,
   ipcMain,
@@ -1444,10 +1863,21 @@ const { createPatchWindow } = registerPatchWindow({
   setPatchWindow: (nextWindow) => { patchWin = nextWindow; }
 });
 
+const { createPetWindow, closePetWindow, positionPetWindow } = registerPetWindow({
+  BrowserWindow,
+  ipcMain,
+  path,
+  baseDir: __dirname,
+  getMainWindow: () => win,
+  getPetWindow: () => petWin,
+  setPetWindow: (nextWindow) => { petWin = nextWindow; },
+  getPetSelection: () => currentPetSelection
+});
+
 app.whenReady().then(async () => {
   logger.log('startup', '========== MiniBox App Started ==========');
   logger.log('startup', `Version: ${app.getVersion()}`);
-  
+
   // Start auth server for Spotify OAuth redirects
   try {
     await startAuthServer();
@@ -1469,6 +1899,7 @@ app.whenReady().then(async () => {
 
   // Setup auto-updater (always setup so handlers work when manually triggered)
   autoUpdater.logger = console;
+  autoUpdater.autoDownload = false;
   
   // Explicitly configure GitHub provider
   autoUpdater.setFeedURL({
@@ -1523,8 +1954,8 @@ app.whenReady().then(async () => {
     console.error('[updater] Error:', err.message || err);
   });
   
-  // Auto-check for updates in production mode
-  if (process.env.NODE_ENV === 'production' || process.env.FORCE_UPDATER) {
+  // Auto-check for updates in packaged builds (or when explicitly forced in dev)
+  if (app.isPackaged || process.env.FORCE_UPDATER) {
     autoUpdater.checkForUpdatesAndNotify();
   }
 
@@ -1532,6 +1963,19 @@ app.whenReady().then(async () => {
   const restored = await tryRestore();
 
   createWindow();
+  createPetWindow();
+
+  const shouldShowOnboarding = !storage.getOnboardingCompleted();
+  win.once('ready-to-show', () => {
+    if (shouldShowOnboarding) {
+      createOnboardingWindow();
+      return;
+    }
+
+    if (currentSourceMode === 'spotify' && !getConfiguredSpotifyClientId()) {
+      createSetupWindow();
+    }
+  });
 
   // Check if app was updated and show patch notes
   const currentVersion = app.getVersion();
@@ -1586,15 +2030,37 @@ app.whenReady().then(async () => {
       } catch (e) {}
       settingsWin = null;
     }
+    if (setupWin && !setupWin.isDestroyed()) {
+      try {
+        setupWin.close();
+      } catch (e) {}
+      setupWin = null;
+    }
+    if (onboardingWin && !onboardingWin.isDestroyed()) {
+      try {
+        onboardingWin.close();
+      } catch (e) {}
+      onboardingWin = null;
+    }
     if (win && !win.isDestroyed()) {
       try {
         win.close();
       } catch (e) {}
       win = null;
     }
+    if (petWin && !petWin.isDestroyed()) {
+      try {
+        closePetWindow();
+      } catch (e) {}
+      petWin = null;
+    }
   });
 
   app.on('activate', () => {
-    if (BrowserWindow.getAllWindows().length === 0) createWindow();
+    if (BrowserWindow.getAllWindows().length === 0) {
+      createWindow();
+      createPetWindow();
+      positionPetWindow();
+    }
   });
 });

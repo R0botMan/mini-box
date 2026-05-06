@@ -1,6 +1,3 @@
-// Add new renderer HTML files for patch notes, queue, and settings
-
-//Added local audio provider for local file and folder imports
 module.exports = function registerLocalWindow({
   BrowserWindow,
   ipcMain,
@@ -33,31 +30,32 @@ module.exports = function registerLocalWindow({
     };
   }
 
+  // These pretty much define the size of the local window based on how many items are visible in the queue 
   function getQueueWindowLayout(visibleCount) {
     if (visibleCount === 1) {
       return {
-        width: 370,
+        width: 270,
         height: 130,
-        localWidth: 390,
-        localHeight: 100
+        localWidth: 180,
+        localHeight: 90
       };
     }
 
     if (visibleCount === 2) {
       return {
-        width: 370,
+        width: 270,
         height: 180,
-        localWidth: 390,
-        localHeight: 150
+        localWidth: 180,
+        localHeight: 140
       };
     }
 
     if (visibleCount >= 3) {
       return {
-        width: 370,
-        height: 280,
-        localWidth: 390,
-        localHeight: 230
+        width: 270,
+        height: 240,
+        localWidth: 180,
+        localHeight: 190
       };
     }
 
@@ -69,30 +67,39 @@ module.exports = function registerLocalWindow({
     };
   }
 
+  // The local window with a max of 3 items visible
   function getBrowserWindowLayout(visibleCount) {
+    if (visibleCount === 0) {
+      return {
+        width: 270,
+        height: 210,
+        localWidth: 180,
+        localHeight: 170
+      };
+    }
     if (visibleCount === 1) {
       return {
-        width: 370,
-        height: 310,
-        localWidth: 390,
-        localHeight: 190
+        width: 270,
+        height: 190,
+        localWidth: 180,
+        localHeight: 130
       };
     }
 
     if (visibleCount === 2) {
       return {
-        width: 370,
-        height: 310,
-        localWidth: 390,
-        localHeight: 220
+        width: 270,
+        height: 250,
+        localWidth: 180,
+        localHeight: 200
       };
     }
 
     return {
-      width: 370,
+      width: 270,
       height: 300,
-      localWidth: 390,
-      localHeight: 250
+      localWidth: 180,
+      localHeight: 240
     };
   }
 
@@ -159,6 +166,7 @@ module.exports = function registerLocalWindow({
         sandbox: true,
       }
     });
+    localWin.setAlwaysOnTop(true, 'floating');
 
     setLocalWindow(localWin);
     localWin.loadFile(path.join(baseDir, '../renderer/local.html'));

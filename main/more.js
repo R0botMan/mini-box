@@ -65,6 +65,7 @@ module.exports = function registerMoreWindow({
         sandbox: true,
       }
     });
+    moreWin.setAlwaysOnTop(true, 'floating');
 
     setMoreWindow(moreWin);
     moreWin.loadFile(path.join(baseDir, '../renderer/more.html'));

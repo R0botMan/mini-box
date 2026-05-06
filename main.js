@@ -1105,7 +1105,6 @@ function createWindow() {
 
   win.loadFile('index.html');
   win.once('ready-to-show', () => win.show());
-  // win.webContents.openDevTools({ mode: 'detach' }); //optional
 }
 
 // ===== Queue Window =====

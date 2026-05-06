@@ -1,0 +1,102 @@
+<!doctype html>
+<html>
+<head>
+  <meta charset="utf-8" />
+  <link href="https://fonts.googleapis.com/css2?family=Pixelify+Sans&display=swap" rel="stylesheet">
+  <title>MiniBox Pet</title>
+  <style>
+    html, body {
+      margin: 0;
+      width: 100%;
+      height: 100%;
+      background: transparent;
+      overflow: hidden;
+      user-select: none;
+      -webkit-user-select: none;
+      -webkit-app-region: no-drag;
+    }
+
+    .pet-wrap {
+      position: relative;
+      width: 100%;
+      height: 100%;
+      display: flex;
+      align-items: flex-end;
+      justify-content: flex-start;
+      pointer-events: auto;
+    }
+
+    .pet {
+      width: 112px;
+      height: 84px;
+      object-fit: contain;
+      filter: drop-shadow(0 2px 6px rgba(0, 0, 0, 0.35));
+      cursor: pointer;
+      image-rendering: auto;
+    }
+
+    .bubble {
+      position: absolute;
+      top: 2px;
+      left: 52px;
+      min-width: 38px;
+      padding: 3px 6px;
+      border-radius: 999px;
+      background: rgba(12, 12, 12, 0.78);
+      color: #f7f7f7;
+      font-family: "Pixelify Sans", sans-serif;
+      font-size: 10px;
+      text-align: center;
+      opacity: 0;
+      transform: translateY(6px);
+      transition: opacity 140ms ease, transform 140ms ease;
+      pointer-events: none;
+      border: 1px solid rgba(255, 255, 255, 0.18);
+    }
+
+    .bubble.show {
+      opacity: 1;
+      transform: translateY(0);
+    }
+  </style>
+</head>
+<body>
+  <div class="pet-wrap">
+    <img class="pet" id="petSprite" src="../assets/SleepyCat.gif" alt="Sleepy Cat" />
+    <div class="bubble" id="petBubble">Zzz...</div>
+  </div>
+
+  <script>
+    const bubble = document.getElementById('petBubble');
+    const petSprite = document.getElementById('petSprite');
+    const params = new URLSearchParams(window.location.search);
+    const selectedPet = (params.get('pet') || 'sleepycat').toLowerCase();
+    let bubbleTimer = null;
+
+    const petAssetMap = {
+      sleepycat: '../assets/SleepyCat.gif'
+    };
+
+    petSprite.src = petAssetMap[selectedPet] || petAssetMap.sleepycat;
+
+    function showBubble(text = 'Zzz...') {
+      bubble.textContent = text;
+      bubble.classList.add('show');
+      if (bubbleTimer) {
+        clearTimeout(bubbleTimer);
+      }
+      bubbleTimer = setTimeout(() => {
+        bubble.classList.remove('show');
+      }, 1200);
+    }
+
+    petSprite.addEventListener('click', () => {
+      showBubble('purr...');
+    });
+
+    petSprite.addEventListener('mouseenter', () => {
+      showBubble('Zzz...');
+    });
+  </script>
+</body>
+</html>

@@ -23,13 +23,18 @@
     html, body {
       margin: 0;
       padding: 0;
+      width: 100%;
+      height: 100%;
       background: transparent;
       font-family: 'Pixelify Sans', sans-serif;
       color: var(--theme-text-primary);
+      overflow: hidden;
     }
 
     .queue-container {
-      width: 280px;
+      width: 100%;
+      height: 90%;
+      box-sizing: border-box;
       background: var(--theme-background);
       backdrop-filter: blur(6px);
       border-radius: 10px;
@@ -46,8 +51,10 @@
       display: flex;
       flex-direction: column;
       gap: 4px;
-      max-height: 300px;
+      height: 100%;
+      max-height: calc(100% - 2px);
       overflow-y: auto;
+      box-sizing: border-box;
     }
 
     .queue-item {
@@ -157,8 +164,8 @@
     }
 
     .queue-item.current:hover {
-      background: rgba(60, 250, 255, 0.15);
-      border-color: rgba(60, 250, 255, 0.3);
+      background: var(--theme-queue-item-current-bg);
+      border-color: var(--theme-queue-item-current-border);
     }
 
     .queue-empty {

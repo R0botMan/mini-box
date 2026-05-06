@@ -28,7 +28,7 @@ module.exports = function registerSettingsWindow({
 
     const win = getMainWindow();
     const settingsWin = new BrowserWindow({
-      width: 280,
+      width: 320,
       height: 220,
       frame: false,
       transparent: true,
@@ -44,13 +44,14 @@ module.exports = function registerSettingsWindow({
         sandbox: true,
       }
     });
+    settingsWin.setAlwaysOnTop(true, 'floating');
 
     setSettingsWindow(settingsWin);
     settingsWin.loadFile(path.join(baseDir, '../renderer/settings.html'));
 
     const [x, y] = win.getPosition();
     const [winWidth, winHeight] = win.getSize();
-    const settingsWidth = 390;
+    const settingsWidth = 360;
     const settingsHeight = 560;
     const centeredX = x + (winWidth - settingsWidth) / 2;
     const centeredY = y + (winHeight - settingsHeight) / 2;

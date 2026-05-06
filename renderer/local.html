@@ -19,6 +19,9 @@
       --theme-accent-danger-hover: rgba(255, 100, 100, 0.22);
       --theme-accent-active: rgba(60, 250, 255, 0.12);
       --theme-accent-active-border: rgba(60, 250, 255, 0.25);
+      --theme-queue-item-current: #3cfaff;
+      --theme-queue-item-current-bg: rgba(60, 250, 255, 0.1);
+      --theme-queue-item-current-border: rgba(60, 250, 255, 0.2);
       --theme-text-opacity: rgba(255, 255, 255, 0.7);
     }
 
@@ -199,12 +202,16 @@
       gap: 6px;
       padding: 2px;
       border-radius: 6px;
-      background: rgba(255, 255, 255, 0.03);
-      border: 1px solid var(--theme-border-color);
     }
 
     .filter-group .btn {
       padding: 5px 8px;
+    }
+
+    .filter-group .btn.active {
+      background: var(--theme-queue-item-current-bg);
+      border-color: var(--theme-queue-item-current-border);
+      color: var(--theme-text-primary);
     }
 
     .select-all {
@@ -213,6 +220,7 @@
       gap: 6px;
       font-size: 10px;
       color: var(--theme-text-opacity);
+      min-width: 0;
     }
 
     .select-all input,
@@ -262,8 +270,8 @@
 
     .source-row.selected,
     .source-row.active {
-      background: var(--theme-accent-active);
-      border-color: var(--theme-accent-active-border);
+      background: var(--theme-queue-item-current-bg);
+      border-color: var(--theme-queue-item-current-border);
     }
 
     .source-main {
@@ -313,9 +321,9 @@
     }
 
     .status-pill.active {
-      border-color: var(--theme-accent-active-border);
+      border-color: var(--theme-queue-item-current-border);
       color: var(--theme-text-primary);
-      background: rgba(60, 250, 255, 0.08);
+      background: var(--theme-queue-item-current-bg);
     }
 
     .source-actions {
@@ -352,8 +360,8 @@
     }
 
     .queue-item.current {
-      border-color: var(--theme-accent-active-border);
-      background: rgba(60, 250, 255, 0.1);
+      border-color: var(--theme-queue-item-current-border);
+      background: var(--theme-queue-item-current-bg);
     }
 
     .queue-duration {
@@ -655,21 +663,25 @@
         </div>
         <div class="actions">
           <div class="actions-left">
-            <div class="filter-group">
-              <button class="btn ${state.importFilter === 'all' ? 'active' : ''}" data-action="set-filter" data-filter="all">All</button>
-              <button class="btn ${state.importFilter === 'file' ? 'active' : ''}" data-action="set-filter" data-filter="file">Files</button>
-              <button class="btn ${state.importFilter === 'folder' ? 'active' : ''}" data-action="set-filter" data-filter="folder">Folder</button>
-            </div>
-          </div>
-          <div class="actions-right">
             ${state.editMode ? `
               <label class="select-all">
                 <input id="selectAllInput" type="checkbox" ${allChecked ? 'checked' : ''} />
                 Select All
               </label>
-            ` : ''}
-            <button class="btn" data-action="toggle-edit">${state.editMode ? 'Cancel' : 'Edit'}</button>
-            ${state.editMode ? `<button class="btn danger" data-action="delete-selected" ${checkedCount ? '' : 'disabled'}>Delete</button>` : `
+            ` : `
+              <div class="filter-group">
+                <button class="btn ${state.importFilter === 'all' ? 'active' : ''}" data-action="set-filter" data-filter="all">All</button>
+                <button class="btn ${state.importFilter === 'file' ? 'active' : ''}" data-action="set-filter" data-filter="file">Files</button>
+                <button class="btn ${state.importFilter === 'folder' ? 'active' : ''}" data-action="set-filter" data-filter="folder">Folder</button>
+              </div>
+            `}
+          </div>
+          <div class="actions-right">
+            ${state.editMode ? `
+              <button class="btn" data-action="toggle-edit">Cancel</button>
+              <button class="btn danger" data-action="delete-selected" ${checkedCount ? '' : 'disabled'}>Delete</button>
+            ` : `
+              <button class="btn" data-action="toggle-edit">Edit</button>
               <div class="menu">
                 <button class="btn ${state.addMenuOpen ? 'active' : ''}" data-action="toggle-add-menu">Add</button>
                 ${state.addMenuOpen ? `
