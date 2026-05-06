@@ -71,6 +71,8 @@ These are the features of the app:
 
 ## Version History
 
+- **v1.2.0** - Spotify setup, themes, pets, onboarding, UI improvements
+- **v1.1.9** - Authentication fixes
 - **v1.1.8** - Improved next-song marquee loop and duplicate-title scrolling
 - **v1.1.7** - Local audio mode, source switching, app modular refactor, and auth/session hardening
 - **v1.1.6** - Patch notes window
