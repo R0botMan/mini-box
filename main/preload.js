@@ -59,6 +59,7 @@ contextBridge.exposeInMainWorld('api', {
   setSourceMode: (mode) => ipcRenderer.invoke('setSourceMode', mode),
   getPetSelection: () => ipcRenderer.invoke('getPetSelection'),
   setPetSelection: (selection) => ipcRenderer.invoke('setPetSelection', selection),
+  onPetSelectionChanged: (cb) => ipcRenderer.on('petSelectionChanged', (_event, selection) => cb(selection)),
   onSourceModeChanged: (cb) => ipcRenderer.on('sourceModeChanged', cb),
   getLocalAudioSources: () => ipcRenderer.invoke('getLocalAudioSources'),
   getLocalSourceItems: () => ipcRenderer.invoke('getLocalSourceItems'),

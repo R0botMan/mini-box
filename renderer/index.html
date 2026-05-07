@@ -1218,7 +1218,8 @@
 
     function setControlsEnabled(on) {
       [btnPrev, btnPlay, btnNext, volBtn].forEach(b => b.disabled = !on);
-      btnQueue.disabled = !on || !activeProvider?.supportsQueueWindow;
+      // Queue can be opened even when playback controls are disabled.
+      btnQueue.disabled = !activeProvider?.supportsQueueWindow;
       window.api.rendererLog?.('ui', `Controls ${on ? 'enabled' : 'disabled'}`);
     }
     function setControlsVisible(visible) {

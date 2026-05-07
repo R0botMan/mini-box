@@ -1,6 +1,6 @@
 {
   "name": "mini-box",
-  "version": "1.2.0",
+  "version": "1.2.1",
   "description": "Launch MiniBox",
   "author": "RobotMan",
   "main": "main/main.js",

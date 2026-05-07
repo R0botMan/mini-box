@@ -19,12 +19,21 @@ module.exports = function registerQueueWindow({
   function getQueueWindowLayout(songCount = currentQueueSongCount) {
     const safeSongCount = normalizeQueueSongCount(songCount);
 
-    if (safeSongCount <= 1) {
+    if (safeSongCount === 0) {
       return {
         width: 254,
-        height: 55,
+        height: 85,
         queueWidth: 115,
-        queueHeight: 10
+        queueHeight: 40
+      };
+    }
+
+    if (safeSongCount === 1) {
+      return {
+        width: 254,
+        height: 85,
+        queueWidth: 115,
+        queueHeight: 70
       };
     }
 
@@ -33,7 +42,7 @@ module.exports = function registerQueueWindow({
         width: 254,
         height: 96,
         queueWidth: 115,
-        queueHeight: 40
+        queueHeight: 70
       };
     }
 
@@ -101,6 +110,23 @@ module.exports = function registerQueueWindow({
     queueWin.loadFile(path.join(baseDir, '../renderer/queue.html'));
 
     applyQueueWindowLayout(currentQueueSongCount);
+    let didShowQueueWindow = false;
+    let showFallbackTimeout = null;
+
+    const showQueueWindow = () => {
+      if (didShowQueueWindow || queueWin.isDestroyed()) {
+        return;
+      }
+
+      didShowQueueWindow = true;
+      applyQueueWindowLayout(currentQueueSongCount);
+      queueWin.show();
+      try {
+        if (win && !win.isDestroyed()) {
+          win.webContents.send('queueOpened');
+        }
+      } catch (e) {}
+    };
 
     const moveHandler = () => {
       try {
@@ -112,17 +138,15 @@ module.exports = function registerQueueWindow({
     };
     win.on('move', moveHandler);
 
-    queueWin.once('ready-to-show', () => {
-      applyQueueWindowLayout(currentQueueSongCount);
-      queueWin.show();
-      try {
-        if (win && !win.isDestroyed()) {
-          win.webContents.send('queueOpened');
-        }
-      } catch (e) {}
-    });
+    queueWin.once('ready-to-show', showQueueWindow);
+    queueWin.webContents.once('did-finish-load', showQueueWindow);
+    showFallbackTimeout = setTimeout(showQueueWindow, 500);
 
     queueWin.on('closed', () => {
+      if (showFallbackTimeout) {
+        clearTimeout(showFallbackTimeout);
+        showFallbackTimeout = null;
+      }
       setQueueWindow(null);
       try {
         if (win && !win.isDestroyed()) {

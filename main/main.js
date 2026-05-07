@@ -1214,6 +1214,10 @@ ipcMain.handle('getTheme', async () => {
   return currentTheme;
 });
 
+ipcMain.handle('getAppRuntime', async () => {
+  return storage.getTotalRuntimeWithCurrentSession(appStartTime);
+});
+
 ipcMain.handle('getSourceMode', async () => {
   return currentSourceMode;
 });
@@ -1248,7 +1252,7 @@ ipcMain.handle('setSourceMode', async (_e, mode) => {
 });
 
 ipcMain.handle('setPetSelection', async (_e, selection) => {
-  const allowedPets = new Set(['none', 'sleepycat']);
+  const allowedPets = new Set(['none', 'sleepycat', 'sleepycat-orange', 'sleepycat-black']);
   const nextSelection = String(selection || 'none').toLowerCase();
   if (!allowedPets.has(nextSelection)) {
     throw new Error(`Invalid pet selection: ${selection}`);

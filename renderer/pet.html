@@ -62,7 +62,7 @@
 </head>
 <body>
   <div class="pet-wrap">
-    <img class="pet" id="petSprite" src="../assets/SleepyCat.gif" alt="Sleepy Cat" />
+    <img class="pet" id="petSprite" src="../assets/SleepyCat - Gray.gif" alt="SleepyCat - Gray" />
     <div class="bubble" id="petBubble">Zzz...</div>
   </div>
 
@@ -74,10 +74,30 @@
     let bubbleTimer = null;
 
     const petAssetMap = {
-      sleepycat: '../assets/SleepyCat.gif'
+      sleepycat: '../assets/SleepyCat - Gray.gif',
+      'sleepycat-orange': '../assets/SleepyCat - Orange.gif',
+      'sleepycat-black': '../assets/SleepyCat - Black.gif'
     };
 
-    petSprite.src = petAssetMap[selectedPet] || petAssetMap.sleepycat;
+    const petAltMap = {
+      sleepycat: 'SleepyCat - Gray',
+      'sleepycat-orange': 'SleepyCat - Orange',
+      'sleepycat-black': 'SleepyCat - Black'
+    };
+
+    function applyPetSelection(petKey) {
+      const normalizedKey = String(petKey || 'sleepycat').toLowerCase();
+      petSprite.src = petAssetMap[normalizedKey] || petAssetMap.sleepycat;
+      petSprite.alt = petAltMap[normalizedKey] || petAltMap.sleepycat;
+    }
+
+    applyPetSelection(selectedPet);
+
+    if (window.api && typeof window.api.onPetSelectionChanged === 'function') {
+      window.api.onPetSelectionChanged((nextPet) => {
+        applyPetSelection(nextPet);
+      });
+    }
 
     function showBubble(text = 'Zzz...') {
       bubble.textContent = text;
@@ -87,7 +107,7 @@
       }
       bubbleTimer = setTimeout(() => {
         bubble.classList.remove('show');
-      }, 1200);
+      }, 3200);
     }
 
     petSprite.addEventListener('click', () => {
