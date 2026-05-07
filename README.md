@@ -4,10 +4,12 @@ MiniBox is a lightweight desktop media companion designed to stay accessible whi
 
 ## Spotify Mode
 Control Spotify playback directly from your desktop with quick access to queue previews, volume controls, and next-song notifications.
+
 <img width="702" height="498" alt="MiniBox - Spotify Mode" src="https://github.com/user-attachments/assets/659ee796-8f4c-425d-9d41-73caac462e70" />
 
 ## Local Mode
 Play and manage local audio files through MiniBox’s lightweight overlay interface.
+
 <img width="672" height="416" alt="MiniBox - Local Mode" src="https://github.com/user-attachments/assets/5edd7c02-f670-44d3-ae80-5a226432e76a" />
 
 ## Download
