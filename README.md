@@ -1,6 +1,16 @@
-# Mini Box - Spotify Mini Player
+# Mini Box
 
-Hello! MiniBox is a simple tiny, draggable Spotify mini player for Windows that stays on top of your other applications. In this ReadMe I'll provide a description of what the app is and you can check it out yourself by downloading it. (Linux in development!)
+MiniBox is a lightweight desktop media companion designed to stay accessible while you work, study, game, or browse. MiniBox provides a compact always-on-top overlay that lets you control music quickly without constantly switching between windows.
+
+## Spotify Mode
+Control Spotify playback directly from your desktop with quick access to queue previews, volume controls, and next-song notifications.
+
+<img width="702" height="498" alt="MiniBox - Spotify Mode" src="https://github.com/user-attachments/assets/659ee796-8f4c-425d-9d41-73caac462e70" />
+
+## Local Mode
+Play and manage local audio files through MiniBox’s lightweight overlay interface.
+
+<img width="672" height="416" alt="MiniBox - Local Mode" src="https://github.com/user-attachments/assets/5edd7c02-f670-44d3-ae80-5a226432e76a" />
 
 ## Download
 
@@ -8,25 +18,23 @@ Hello! MiniBox is a simple tiny, draggable Spotify mini player for Windows that 
 
 **Security Note:** Only download from the [official releases](../../releases/latest) on this repository. Always verify the repository URL before installation.
 
-## Screenshots
-
-![MiniBox Playing a Track](assets/Screenshot2.png)
-
 ## Features
 
 These are the features of the app:
 
-- Lightweight and minimal UI  
-- Control playback from your desktop  
-- Always-on-top window  
+- Lightweight and minimal desktop overlay
+- Control music without switching windows
+- Always-on-top floating media companion
+- Spotify and local audio support
 - Transparent draggable interface
-- Theme system preference 
-- Secure Spotify authentication
+- Queue preview and next-song notifications
+- Theme customization and desktop pets
+- Smooth onboarding and setup flow
 
 ## Requirements
 
 - Windows 10 or later
-- **Spotify Premium account** (required for the app owner)
+- Spotify Premium account required for Spotify playback controls
 - Internet connection
 
 ## Installation
@@ -71,6 +79,9 @@ These are the features of the app:
 
 ## Version History
 
+- **v1.2.1** - Pet variation, fixes, queue layout repair
+- **v1.2.0** - Spotify setup, themes, pets, onboarding, UI improvements
+- **v1.1.9** - Authentication fixes
 - **v1.1.8** - Improved next-song marquee loop and duplicate-title scrolling
 - **v1.1.7** - Local audio mode, source switching, app modular refactor, and auth/session hardening
 - **v1.1.6** - Patch notes window
@@ -80,8 +91,9 @@ These are the features of the app:
 
 ## Known Limitations
 
-- **Private Sessions**: MiniBox cannot display or control playback during Spotify Private Sessions. This is a Spotify API restriction — the API intentionally hides data from third-party apps when Private Session is enabled
-- **First-time login with Private Session**: If you log in to MiniBox while Private Session is enabled, you may need to disable it and restart the app to see tracks
+- Spotify Private Sessions disable playback visibility for third-party apps, including MiniBox
+- Spotify Premium is required for playback control functionality
+- Windows only (for now)
 
 ## License
 ISC
